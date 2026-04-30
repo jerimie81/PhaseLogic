@@ -1,10 +1,10 @@
 import os
 import tomllib
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 
-SMOOTH_BEE_ROOT = Path("/home/redrum/.gemini/git/smooth-bee")
-CONFIG_PATH = SMOOTH_BEE_ROOT / "config.toml"
+from smooth_bee import paths
+
 CODEX_KEY_PATH = Path.home() / ".codex" / "API-key"
 
 
@@ -24,9 +24,10 @@ class Config:
 
 
 def load() -> Config:
+    cfg_path = paths.config_path()
     raw = {}
-    if CONFIG_PATH.exists():
-        with open(CONFIG_PATH, "rb") as f:
+    if cfg_path.exists():
+        with open(cfg_path, "rb") as f:
             raw = tomllib.load(f)
 
     def _get(section, key, env_var=None, default=""):

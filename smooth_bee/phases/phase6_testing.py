@@ -5,11 +5,12 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from smooth_bee.agents.codex_agent import CodexAgent
-from smooth_bee.config import Config, SMOOTH_BEE_ROOT
+from smooth_bee.config import Config
+from smooth_bee import paths
 from smooth_bee.state import ProjectState
 from smooth_bee import workspace as ws
 
-_PROMPTS = SMOOTH_BEE_ROOT / "prompts"
+_PROMPTS = paths.prompts_dir()
 
 
 def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> list[dict]:

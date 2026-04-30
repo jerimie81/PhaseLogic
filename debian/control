@@ -1,0 +1,12 @@
+Package: smooth-bee
+Version: 0.1.0
+Section: utils
+Priority: optional
+Architecture: all
+Depends: python3 (>= 3.11), python3-requests, python3-jinja2
+Maintainer: Jerimie Palmer <jerimiepalmer81@gmail.com>
+Description: Multi-AI project orchestration pipeline
+ smooth-bee coordinates Claude, Gemini, Kimi, and Codex to build
+ software projects collaboratively. Claude architects, Kimi assesses
+ feasibility, Gemini researches toolchains, and Codex tests and
+ secures the result.

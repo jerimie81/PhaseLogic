@@ -4,11 +4,12 @@ import logging
 from jinja2 import Environment, FileSystemLoader
 
 from smooth_bee.agents.gemini_agent import GeminiAgent
-from smooth_bee.config import Config, SMOOTH_BEE_ROOT
+from smooth_bee.config import Config
+from smooth_bee import paths
 from smooth_bee.state import ProjectState
 from smooth_bee import workspace as ws
 
-_PROMPTS = SMOOTH_BEE_ROOT / "prompts"
+_PROMPTS = paths.prompts_dir()
 _SYS = "You are a deep technical researcher. Output only valid JSON with no markdown fences."
 
 

@@ -3,27 +3,30 @@ import os
 from pathlib import Path
 from typing import Any
 
-from smooth_bee.config import SMOOTH_BEE_ROOT
+from smooth_bee import paths
 
-WORKSPACE_ROOT = SMOOTH_BEE_ROOT / "workspace"
+
+def _root() -> Path:
+    return paths.workspace_root()
 
 
 def create(project_name: str) -> Path:
-    project_dir = WORKSPACE_ROOT / project_name
+    project_dir = _root() / project_name
     for sub in ["phase5_sections", "phase6_results", "generated", "logs"]:
         (project_dir / sub).mkdir(parents=True, exist_ok=True)
     return project_dir
 
 
 def get_path(project_name: str) -> Path:
-    return WORKSPACE_ROOT / project_name
+    return _root() / project_name
 
 
 def list_projects() -> list[dict]:
-    if not WORKSPACE_ROOT.exists():
+    root = _root()
+    if not root.exists():
         return []
     results = []
-    for d in sorted(WORKSPACE_ROOT.iterdir()):
+    for d in sorted(root.iterdir()):
         if d.is_dir():
             state_file = d / "state.json"
             phase = "unknown"
