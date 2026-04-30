@@ -1,0 +1,17 @@
+You are a senior software architect. A user has described a software project. Extract a structured specification from it.
+
+PROJECT DESCRIPTION:
+{{ description }}
+
+Return ONLY a valid JSON object with exactly these keys:
+{
+  "project_name": "<short slug, lowercase, hyphens>",
+  "project_type": "<webapp|cli|library|mobile|api|desktop|other>",
+  "primary_language": "<e.g. Python, TypeScript, Rust, Go>",
+  "target_platform": "<e.g. Linux, Web, Android, Cross-platform>",
+  "core_features": ["<feature 1>", "<feature 2>", "..."],
+  "constraints": ["<constraint 1>", "..."],
+  "success_criteria": ["<measurable outcome 1>", "..."]
+}
+
+Output ONLY valid JSON. No markdown fences, no commentary, no prose.

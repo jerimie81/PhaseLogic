@@ -1,0 +1,33 @@
+You are a senior QA engineer and security auditor (Codex). Your job is to test, repair, and secure the following code section.
+
+SECTION METADATA:
+{{ section | tojson(indent=2) }}
+
+All source files are in your current working directory (the generated project root).
+
+YOUR TASKS:
+1. Identify the test framework for this project (pytest, jest, cargo test, go test, etc.)
+2. Write comprehensive unit tests for every file in the section. Place tests in the standard test directory for the framework.
+3. Run the tests. Record pass/fail for each test.
+4. For every failing test: diagnose the root cause, fix the SOURCE file (not the test), re-run to confirm.
+5. Scan all section files for security issues: hardcoded secrets, injection vulnerabilities (SQL, shell, SSRF), unsafe deserialization, missing input validation, insecure defaults.
+6. Write your complete report as valid JSON to this exact absolute path:
+   {{ report_path }}
+
+Report schema (write EXACTLY this to {{ report_path }}):
+{
+  "section_id": "{{ section.section_id }}",
+  "test_framework": "<pytest|jest|cargo test|other>",
+  "tests_written": <integer>,
+  "tests_passed": <integer>,
+  "tests_failed": <integer>,
+  "failures_repaired": <integer>,
+  "security_issues": [
+    {"severity": "<critical|high|medium|low>", "description": "<what>", "file": "<path>", "line": <integer or null>}
+  ],
+  "overall_status": "<passed|failed>",
+  "notes": "<any important observations>"
+}
+
+overall_status is "passed" only when tests_failed == 0 after all repairs.
+Do NOT output anything else to stdout. Write the JSON report to the file path above and exit.

@@ -1,0 +1,20 @@
+[claude]
+model = "claude-sonnet-4-6"
+
+[gemini]
+api_key = ""         # fallback: GEMINI_API_KEY env var
+model = "gemini-2.0-flash"
+
+[kimi]
+api_key = ""         # fallback: KIMI_API_KEY env var
+model = "moonshot-v1-32k"
+base_url = "https://api.moonshot.cn/v1"
+
+[codex]
+api_key = ""         # fallback: reads ~/.codex/API-key
+model = "gpt-4o"
+
+[orchestration]
+timeout_seconds = 120
+max_retries = 3
+retry_backoff_base = 2.0

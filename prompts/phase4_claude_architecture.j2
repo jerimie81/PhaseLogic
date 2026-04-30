@@ -1,0 +1,44 @@
+You are the lead architect. Using the full research package below, design the complete directory structure and divide the project into independently-codeable sections.
+
+PROJECT SPECIFICATION:
+{{ spec | tojson(indent=2) }}
+
+FEASIBILITY:
+{{ feasibility | tojson(indent=2) }}
+
+RESEARCH (toolchains, libraries, build plan):
+{{ research | tojson(indent=2) }}
+
+Rules for section assignment:
+- Assign sections involving build toolchain, library integration, or data pipelines to "gemini"
+- Assign sections involving business logic, data models, or user-facing APIs to "kimi"
+- Split roughly 50/50 between the two
+- Each section must list the files it will create (relative paths from project root)
+- dependencies lists section_ids that MUST be coded before this section starts
+
+Return ONLY a valid JSON object with exactly these keys:
+{
+  "directory_tree": {
+    "<folder>": {
+      "<subfolder>": {},
+      "<file.ext>": null
+    }
+  },
+  "sections": [
+    {
+      "section_id": "s1_<slug>",
+      "title": "<human-readable title>",
+      "description": "<what this section implements>",
+      "files_to_create": ["<relative/path/file.ext>", "..."],
+      "assigned_to": "<gemini|kimi>",
+      "dependencies": ["<other section_id>", "..."]
+    }
+  ],
+  "bootstrap_files": [
+    {"path": "<file>", "content": "<exact file content>"}
+  ],
+  "setup_commands": ["<ordered shell command 1>", "..."]
+}
+
+bootstrap_files: config files, pyproject.toml, package.json, Makefile, etc. that must exist before any section is coded.
+Output ONLY valid JSON. No markdown fences, no commentary, no prose.
