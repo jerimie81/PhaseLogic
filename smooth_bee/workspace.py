@@ -30,13 +30,23 @@ def list_projects() -> list[dict]:
         if d.is_dir():
             state_file = d / "state.json"
             phase = "unknown"
+            created_at = ""
+            status = "unknown"
             if state_file.exists():
                 try:
                     data = json.loads(state_file.read_text())
                     phase = data.get("current_phase", "unknown")
+                    created_at = data.get("created_at", "")
+                    if phase == "DONE":
+                        status = "done"
+                    elif phase == "FAILED":
+                        status = "failed"
+                    else:
+                        status = "running"
                 except Exception:
                     pass
-            results.append({"name": d.name, "phase": phase, "path": str(d)})
+            results.append({"name": d.name, "phase": phase, "path": str(d),
+                             "created_at": created_at, "status": status})
     return results
 
 

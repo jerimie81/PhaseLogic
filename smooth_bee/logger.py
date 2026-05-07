@@ -1,9 +1,18 @@
 import logging
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 from smooth_bee import workspace
+
+_run_start: float | None = None
+_TOTAL_PHASES = 6
+
+
+def start_run() -> None:
+    global _run_start
+    _run_start = time.monotonic()
 
 
 def get_logger(project_name: str) -> logging.Logger:
@@ -31,5 +40,12 @@ def get_logger(project_name: str) -> logging.Logger:
 
 
 def phase_banner(logger: logging.Logger, phase_num: int, phase_name: str) -> None:
-    bar = "=" * 50
-    logger.info(f"\n{bar}\n  PHASE {phase_num}: {phase_name}\n{bar}")
+    filled = phase_num - 1
+    bar = "█" * filled + "░" * (_TOTAL_PHASES - filled)
+    elapsed_str = ""
+    if _run_start is not None:
+        secs = int(time.monotonic() - _run_start)
+        elapsed_str = f"  ~{secs}s elapsed"
+    sep = "=" * 50
+    progress = f"  [{bar}] Phase {phase_num}/{_TOTAL_PHASES}{elapsed_str}"
+    logger.info(f"\n{sep}\n  PHASE {phase_num}: {phase_name}\n{progress}\n{sep}")

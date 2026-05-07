@@ -1,4 +1,8 @@
+import json
 import logging
+import os
+import subprocess
+import sys
 
 from smooth_bee import state as st, workspace as ws, logger as lg
 from smooth_bee.agents.base import AgentError
@@ -15,14 +19,24 @@ from smooth_bee.phases import (
 from smooth_bee import memory
 
 
+_REVIEW_ARTIFACTS: dict[Phase, str] = {
+    Phase.INIT: "phase1_spec.json",
+    Phase.SPEC: "phase2_feasibility.json",
+    Phase.FEASIBILITY: "phase3_research.json",
+    Phase.RESEARCH: "phase4_architecture.json",
+}
+
+
 class Orchestrator:
-    def __init__(self, project_name: str, cfg: Config):
+    def __init__(self, project_name: str, cfg: Config, interactive: bool = False):
         self.project_name = project_name
         self.cfg = cfg
+        self.interactive = interactive
         self.workspace_dir = ws.get_path(project_name)
         self.logger = lg.get_logger(project_name)
 
     def run(self) -> None:
+        lg.start_run()
         state = st.load(self.workspace_dir)
         self.logger.info(f"Resuming {self.project_name} from phase: {state.current_phase.value}")
 
@@ -41,14 +55,16 @@ class Orchestrator:
                 break
             try:
                 handler(state)
-                st.advance(state, self.workspace_dir)
-                state = st.load(self.workspace_dir)
-                memory.log_phase(self.project_name, state.current_phase.value)
             except (AgentError, Exception) as e:
                 self.logger.error(f"Phase {state.current_phase.value} failed: {e}")
                 st.mark_failed(state, self.workspace_dir, str(e))
                 memory.log_phase(self.project_name, "FAILED", str(e))
                 raise
+            if self.interactive:
+                self._interactive_review(state)
+            st.advance(state, self.workspace_dir)
+            state = st.load(self.workspace_dir)
+            memory.log_phase(self.project_name, state.current_phase.value)
 
         if state.current_phase == Phase.DONE:
             self._print_summary(state)
@@ -77,6 +93,46 @@ class Orchestrator:
     def _run_testing(self, state: ProjectState) -> None:
         lg.phase_banner(self.logger, 6, "TESTING (Codex)")
         phase6_testing.run(state, self.cfg, self.logger)
+
+    def _interactive_review(self, state: ProjectState) -> None:
+        artifact_name = _REVIEW_ARTIFACTS.get(state.current_phase)
+        phase_label = state.current_phase.value
+
+        if artifact_name:
+            artifact_path = self.workspace_dir / artifact_name
+            try:
+                content = json.loads(artifact_path.read_text())
+                text = json.dumps(content, indent=2)
+                truncated = len(text) > 3000
+                print(f"\n--- {phase_label} output ({artifact_name}) ---")
+                print(text[:3000])
+                if truncated:
+                    print(f"  … (truncated — full file: {artifact_path})")
+                print("--- end output ---")
+            except Exception:
+                pass
+
+        if not sys.stdin.isatty():
+            return
+
+        while True:
+            choice = input(
+                f"\nPhase {phase_label} complete. Continue? "
+                "[Enter=yes / e=edit artifact / q=quit]: "
+            ).strip().lower()
+            if choice in ("", "y", "yes"):
+                return
+            elif choice == "e":
+                if artifact_name:
+                    editor = os.environ.get("EDITOR", "vi")
+                    path = str(self.workspace_dir / artifact_name)
+                    subprocess.run([editor, path])
+                else:
+                    print("  No editable artifact for this phase.")
+                return
+            elif choice in ("q", "quit", "abort"):
+                print(f"Aborted. State saved. Resume with: smooth-bee resume {self.project_name}")
+                sys.exit(0)
 
     def _print_summary(self, state: ProjectState) -> None:
         gen_dir = ws.get_generated_dir(self.project_name)

@@ -1,10 +1,41 @@
 import argparse
+import datetime
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 from smooth_bee import config, state as st, workspace as ws, memory
+
+_PHASE_LABELS = [
+    ("SPEC",         "SPEC — specification (Claude)"),
+    ("FEASIBILITY",  "FEASIBILITY — feasibility check (Kimi)"),
+    ("RESEARCH",     "RESEARCH — research & planning (Gemini)"),
+    ("ARCHITECTURE", "ARCHITECTURE — design (Claude)"),
+    ("CODING",       "CODING — code generation (Gemini + Kimi)"),
+    ("TESTING",      "TESTING — test generation (Codex)"),
+]
+
+
+def _check_config(cfg) -> None:
+    checks = config.validate(cfg)
+    failures = [(label, note) for label, ok, note in checks if not ok]
+    if failures:
+        print("smooth-bee: configuration error(s) — cannot start pipeline:")
+        for label, note in failures:
+            print(f"  ✗  {label}: {note}")
+        print("\nRun 'smooth-bee doctor' for full diagnostics.")
+        sys.exit(1)
+
+
+def _fmt_date(iso: str) -> str:
+    if not iso:
+        return "-"
+    try:
+        dt = datetime.datetime.fromisoformat(iso)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    except (ValueError, TypeError):
+        return iso[:16]
 
 
 def _slugify(text: str) -> str:
@@ -35,16 +66,19 @@ def cmd_new(args) -> None:
         print(f"\nWorkspace would be: {project_dir}")
         return
 
+    _check_config(cfg)
+
     ws.create(name)
     state = st.create(name, description, project_dir)
     memory.register_project(name, str(project_dir))
 
     from smooth_bee.orchestrator import Orchestrator
-    Orchestrator(name, cfg).run()
+    Orchestrator(name, cfg, interactive=args.interactive).run()
 
 
 def cmd_resume(args) -> None:
     cfg = config.load()
+    _check_config(cfg)
     name = args.project_name
     project_dir = ws.get_path(name)
 
@@ -68,7 +102,7 @@ def cmd_resume(args) -> None:
             print(f"Rewound to phase: {state.current_phase.value}")
 
     from smooth_bee.orchestrator import Orchestrator
-    Orchestrator(name, cfg).run()
+    Orchestrator(name, cfg, interactive=args.interactive).run()
 
 
 def cmd_list(args) -> None:
@@ -76,10 +110,21 @@ def cmd_list(args) -> None:
     if not projects:
         print("No projects found.")
         return
-    print(f"{'PROJECT':<30} {'PHASE':<15}")
-    print("-" * 45)
+    w = max((len(p["name"]) for p in projects), default=12)
+    w = max(w, 12)
+    header = f"{'PROJECT':<{w}}  {'PHASE':<14}  {'STATUS':<8}  {'STARTED':<17}  OUTPUT"
+    print(header)
+    print("-" * len(header))
     for p in projects:
-        print(f"{p['name']:<30} {p['phase']:<15}")
+        gen_dir = Path(p["path"]) / "generated"
+        output = str(gen_dir) if gen_dir.exists() else p["path"]
+        print(
+            f"{p['name']:<{w}}  "
+            f"{p['phase']:<14}  "
+            f"{p.get('status', '-'):<8}  "
+            f"{_fmt_date(p.get('created_at', '')):<17}  "
+            f"{output}"
+        )
 
 
 def cmd_status(args) -> None:
@@ -89,15 +134,41 @@ def cmd_status(args) -> None:
         print(f"Project '{name}' not found.")
         sys.exit(1)
     s = st.load(project_dir)
-    print(f"Project:     {s.project_name}")
+    gen_dir = project_dir / "generated"
+
+    print(f"\nProject:     {s.project_name}")
     print(f"Description: {s.description}")
     print(f"Phase:       {s.current_phase.value}")
-    print(f"Completed:   {', '.join(s.completed_phases) or 'none'}")
-    print(f"Sections:    coded={len(s.sections_coded)}  tested={len(s.sections_tested)}")
+    print(f"Created:     {_fmt_date(s.created_at)}")
+    print(f"Updated:     {_fmt_date(s.updated_at)}")
+    print(f"Output:      {gen_dir}")
+
+    completed_values = {p.value if isinstance(p, st.Phase) else p for p in s.completed_phases}
+    current_val = s.current_phase.value
+    print("\nPhases:")
+    for phase_val, label in _PHASE_LABELS:
+        if phase_val in completed_values:
+            marker = "✓"
+        elif current_val == phase_val:
+            marker = "→"
+        else:
+            marker = " "
+        print(f"  {marker}  {label}")
+
+    if s.sections_coded:
+        print(f"\nSections coded:  {len(s.sections_coded)}")
+    if s.sections_tested:
+        print(f"Sections tested: {len(s.sections_tested)}")
     if s.error_info:
-        print(f"Error:       {s.error_info}")
-    print(f"Created:     {s.created_at}")
-    print(f"Updated:     {s.updated_at}")
+        print(f"\nError: {s.error_info}")
+    print()
+
+
+def cmd_doctor(args) -> None:
+    from smooth_bee import doctor
+    ok = doctor.run()
+    if not ok:
+        sys.exit(1)
 
 
 def cmd_logs(args) -> None:
@@ -123,11 +194,15 @@ def main() -> None:
     p_new.add_argument("description", help="Project description in plain English")
     p_new.add_argument("--name", help="Override auto-generated project name")
     p_new.add_argument("--dry-run", action="store_true", help="Show pipeline steps without calling agents")
+    p_new.add_argument("--interactive", action="store_true",
+                       help="Pause after each phase to review output before continuing")
     p_new.set_defaults(func=cmd_new)
 
     p_resume = sub.add_parser("resume", help="Resume an interrupted project")
     p_resume.add_argument("project_name")
     p_resume.add_argument("--phase", help="Restart from this phase (SPEC, FEASIBILITY, etc.)")
+    p_resume.add_argument("--interactive", action="store_true",
+                          help="Pause after each phase to review output before continuing")
     p_resume.set_defaults(func=cmd_resume)
 
     p_list = sub.add_parser("list", help="List all projects")
@@ -141,6 +216,9 @@ def main() -> None:
     p_logs.add_argument("project_name")
     p_logs.add_argument("--lines", type=int, default=50)
     p_logs.set_defaults(func=cmd_logs)
+
+    p_doctor = sub.add_parser("doctor", help="Check environment and configuration")
+    p_doctor.set_defaults(func=cmd_doctor)
 
     args = parser.parse_args()
     args.func(args)

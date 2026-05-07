@@ -1,4 +1,5 @@
 import os
+import subprocess
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -55,3 +56,26 @@ def load() -> Config:
         max_retries=int(orch.get("max_retries", 3)),
         retry_backoff_base=float(orch.get("retry_backoff_base", 2.0)),
     )
+
+
+def validate(cfg: Config) -> list[tuple[str, bool, str]]:
+    """Check that all required integrations are configured. Returns (label, ok, hint) triples."""
+    checks: list[tuple[str, bool, str]] = []
+
+    try:
+        r = subprocess.run(["claude", "--version"], capture_output=True, timeout=5)
+        ok = r.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        ok = False
+    checks.append(("Claude CLI", ok, "" if ok else "claude not found in PATH"))
+
+    ok = bool(cfg.gemini_api_key)
+    checks.append(("Gemini API key", ok, "" if ok else "set GEMINI_API_KEY or [gemini] api_key in config.toml"))
+
+    ok = bool(cfg.kimi_api_key)
+    checks.append(("Kimi API key", ok, "" if ok else "set KIMI_API_KEY or [kimi] api_key in config.toml"))
+
+    ok = bool(cfg.openai_api_key)
+    checks.append(("Codex/OpenAI key", ok, "" if ok else "set OPENAI_API_KEY, [codex] api_key, or ~/.codex/API-key"))
+
+    return checks
