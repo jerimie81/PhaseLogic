@@ -136,7 +136,7 @@ class Orchestrator:
                     print("  No editable artifact for this phase.")
                 return
             elif choice in ("q", "quit", "abort"):
-                print(f"Aborted. State saved. Resume with: smooth-bee resume {self.project_name}")
+                print(f"Aborted. State saved. Resume with: phaselogic resume {self.project_name}")
                 sys.exit(0)
 
     def _print_summary(self, state: ProjectState) -> None:
@@ -158,7 +158,7 @@ class Orchestrator:
         lines = [
             "",
             sep,
-            color.cyan_bold("  smooth-bee: PROJECT COMPLETE"),
+            color.cyan_bold("  PhaseLogic: PROJECT COMPLETE"),
             sep,
             f"  Project:   {self.project_name}",
             f"  Duration:  {duration}",
@@ -194,7 +194,7 @@ class Orchestrator:
 
         lines += [
             "",
-            f"  smooth-bee logs {self.project_name}",
+            f"  phaselogic logs {self.project_name}",
             sep,
             "",
         ]

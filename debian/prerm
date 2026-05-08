@@ -1,5 +1,5 @@
 #!/bin/sh
 set -e
-# Workspace data at ~/.local/share/smooth-bee/ is intentionally left intact.
+# Workspace data at ~/.local/share/phaselogic/ is intentionally left intact.
 #DEBHELPER#
 exit 0

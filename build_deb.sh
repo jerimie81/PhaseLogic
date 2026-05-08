@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build smooth-bee_<version>_all.deb
+# Build phaselogic_<version>_all.deb
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); from smooth_bee import __version__; print(__version__)")
-PKG="smooth-bee_${VERSION}_all"
+PKG="phaselogic_${VERSION}_all"
 STAGING="/tmp/${PKG}"
 PY_DIST="/usr/lib/python3/dist-packages"
 
@@ -28,33 +28,33 @@ find "$STAGING${PY_DIST}/smooth_bee" -name '__pycache__' -exec rm -rf {} + 2>/de
 find "$STAGING${PY_DIST}/smooth_bee" -name '*.pyc' -delete 2>/dev/null || true
 
 # --- Prompt templates ---
-mkdir -p "$STAGING/usr/share/smooth-bee/prompts"
-cp "$SCRIPT_DIR/prompts/"*.j2 "$STAGING/usr/share/smooth-bee/prompts/"
+mkdir -p "$STAGING/usr/share/phaselogic/prompts"
+cp "$SCRIPT_DIR/prompts/"*.j2 "$STAGING/usr/share/phaselogic/prompts/"
 
 # --- Default system config ---
-mkdir -p "$STAGING/etc/smooth-bee"
-cp "$SCRIPT_DIR/config.toml" "$STAGING/etc/smooth-bee/config.toml"
+mkdir -p "$STAGING/etc/phaselogic"
+cp "$SCRIPT_DIR/config.toml" "$STAGING/etc/phaselogic/config.toml"
 
 # --- CLI entry point ---
 mkdir -p "$STAGING/usr/bin"
-cat > "$STAGING/usr/bin/smooth-bee" << 'PYEOF'
+cat > "$STAGING/usr/bin/phaselogic" << 'PYEOF'
 #!/usr/bin/python3
 from smooth_bee.cli import main
 main()
 PYEOF
-chmod 0755 "$STAGING/usr/bin/smooth-bee"
+chmod 0755 "$STAGING/usr/bin/phaselogic"
 
 # --- Changelog (Debian policy requires this) ---
-mkdir -p "$STAGING/usr/share/doc/smooth-bee"
-cat > /tmp/smooth-bee-changelog << 'EOF'
-smooth-bee (0.1.0) unstable; urgency=low
+mkdir -p "$STAGING/usr/share/doc/phaselogic"
+cat > /tmp/phaselogic-changelog << 'EOF'
+phaselogic (0.1.0) unstable; urgency=low
 
   * Initial release.
 
  -- Jerimie Palmer <jerimiepalmer81@gmail.com>  Wed, 30 Apr 2026 00:00:00 +0000
 EOF
-gzip -9 -n -c /tmp/smooth-bee-changelog > "$STAGING/usr/share/doc/smooth-bee/changelog.Debian.gz"
-rm /tmp/smooth-bee-changelog
+gzip -9 -n -c /tmp/phaselogic-changelog > "$STAGING/usr/share/doc/phaselogic/changelog.Debian.gz"
+rm /tmp/phaselogic-changelog
 
 # --- md5sums ---
 (cd "$STAGING" && find usr etc -type f | sort | xargs md5sum > DEBIAN/md5sums)

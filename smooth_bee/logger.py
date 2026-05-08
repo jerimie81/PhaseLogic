@@ -28,7 +28,7 @@ def get_logger(project_name: str) -> logging.Logger:
     ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
     log_file = log_dir / f"session_{ts}.log"
 
-    logger = logging.getLogger(f"smooth-bee.{project_name}")
+    logger = logging.getLogger(f"phaselogic.{project_name}")
     logger.setLevel(logging.DEBUG)
     if logger.handlers:
         return logger

@@ -2,18 +2,18 @@
 set -e
 
 # Ensure the system config dir exists with the default config
-if [ ! -f /etc/smooth-bee/config.toml ]; then
-    mkdir -p /etc/smooth-bee
-    # shipped default is already in /etc/smooth-bee/config.toml via the package
+if [ ! -f /etc/phaselogic/config.toml ]; then
+    mkdir -p /etc/phaselogic
+    # shipped default is already in /etc/phaselogic/config.toml via the package
     true
 fi
 
-echo "smooth-bee installed."
+echo "PhaseLogic installed."
 echo ""
-echo "  Add your API keys to: /etc/smooth-bee/config.toml"
-echo "  Or per-user at:       ~/.config/smooth-bee/config.toml"
+echo "  Add your API keys to: /etc/phaselogic/config.toml"
+echo "  Or per-user at:       ~/.config/phaselogic/config.toml"
 echo ""
-echo "  Usage: smooth-bee new \"describe your project\""
+echo "  Usage: phaselogic new \"describe your project\""
 echo ""
 
 #DEBHELPER#

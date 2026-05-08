@@ -22,10 +22,10 @@ def _check_config(cfg) -> None:
     checks = config.validate(cfg)
     failures = [(label, note) for label, ok, note in checks if not ok]
     if failures:
-        print(color.red_bold("smooth-bee: configuration error(s) — cannot start pipeline:"))
+        print(color.red_bold("PhaseLogic: configuration error(s) — cannot start pipeline:"))
         for label, note in failures:
             print(f"  {color.red('✗')}  {label}: {note}")
-        hint = color.yellow("Run 'smooth-bee doctor' for full diagnostics.")
+        hint = color.yellow("Run 'phaselogic doctor' for full diagnostics.")
         print(f"\n{hint}")
         sys.exit(1)
 
@@ -66,7 +66,7 @@ def cmd_new(args) -> None:
     name = args.name if args.name else _slugify(description)
     project_dir = ws.get_path(name)
     if project_dir.exists():
-        print(f"Project '{name}' already exists. Use: smooth-bee resume {name}")
+        print(f"Project '{name}' already exists. Use: phaselogic resume {name}")
         sys.exit(1)
 
     # Run intake interview (respects --aggressiveness flag or config default)
@@ -106,7 +106,7 @@ def cmd_resume(args) -> None:
     project_dir = ws.get_path(name)
 
     if not project_dir.exists():
-        print(f"Project '{name}' not found. Use: smooth-bee new \"<description>\"")
+        print(f"Project '{name}' not found. Use: phaselogic new \"<description>\"")
         sys.exit(1)
 
     if args.phase:
@@ -308,7 +308,7 @@ def cmd_clean(args) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="smooth-bee", description="Multi-AI project orchestrator")
+    parser = argparse.ArgumentParser(prog="phaselogic", description="Multi-AI project orchestrator")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_new = sub.add_parser("new", help="Start a new project")

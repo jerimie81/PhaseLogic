@@ -57,7 +57,7 @@ _QUESTIONS = [
             ("macos",    "macOS (.app or .dmg)  ⚠  requires a Mac to compile"),
             ("web",      "Web browser — any device"),
             ("server",   "Server / cloud  (Docker, self-hosted)"),
-            ("unsure",   "Not sure — let smooth-bee decide"),
+            ("unsure",   "Not sure — let PhaseLogic decide"),
         ],
     },
 
@@ -109,7 +109,7 @@ _QUESTIONS = [
     {
         "id": "language",
         "wave": 3,
-        "text": "Preferred programming language? (smooth-bee will choose if unsure)",
+        "text": "Preferred programming language? (PhaseLogic will choose if unsure)",
         "choices": [
             ("python",      "Python          — great for scripts, data, web backends"),
             ("typescript",  "JavaScript/TS   — web front-ends and Node.js back-ends"),
@@ -118,7 +118,7 @@ _QUESTIONS = [
             ("rust",        "Rust            — fast, memory-safe, systems programming"),
             ("go",          "Go              — simple, fast, ideal for services/APIs"),
             ("swift",       "Swift           — Apple platforms only (iOS/macOS)"),
-            ("auto",        "Let smooth-bee choose the best fit"),
+            ("auto",        "Let PhaseLogic choose the best fit"),
         ],
     },
 
@@ -145,7 +145,7 @@ _QUESTIONS = [
             ("payments",  "Payment processing (Stripe, PayPal)"),
             ("maps",      "Maps / location (Google Maps, OpenStreetMap)"),
             ("messaging", "Messaging (email, SMS, push notifications)"),
-            ("ai",        "AI / LLM features (beyond smooth-bee itself)"),
+            ("ai",        "AI / LLM features (beyond PhaseLogic itself)"),
             ("custom",    "A specific service — I'll describe it"),
         ],
         "allow_custom": True,
@@ -217,7 +217,7 @@ _QUESTIONS = [
     {
         "id": "extra_context",
         "wave": 5,
-        "text": "Anything else smooth-bee should know to build this exactly right?",
+        "text": "Anything else PhaseLogic should know to build this exactly right?",
         "free_text_label": "Extra context (or press Enter to skip)",
         "optional": True,
     },
@@ -574,7 +574,7 @@ def _toolchain_check(needed: list[str]) -> None:
         return
 
     _section_header("Toolchain Check")
-    print(f"  Based on your answers, smooth-bee needs these tools:\n")
+    print(f"  Based on your answers, PhaseLogic needs these tools:\n")
 
     missing: list[str] = []
     for tid in needed:
@@ -592,7 +592,7 @@ def _toolchain_check(needed: list[str]) -> None:
         print(color.green("  All required tools are available.\n"))
         return
 
-    print(color.yellow(f"  {len(missing)} tool(s) are missing. smooth-bee can try to install them.\n"))
+    print(color.yellow(f"  {len(missing)} tool(s) are missing. PhaseLogic can try to install them.\n"))
     for tid in missing:
         _offer_install(_TOOLCHAINS[tid])
 
@@ -693,7 +693,7 @@ _LANG_LABELS = {
     "rust": "Rust",
     "go": "Go",
     "swift": "Swift",
-    "auto": "smooth-bee's choice",
+    "auto": "PhaseLogic's choice",
 }
 
 

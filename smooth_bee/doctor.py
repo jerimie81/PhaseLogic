@@ -60,7 +60,7 @@ def run() -> bool:
     workspace = paths.workspace_root()
     workspace.mkdir(parents=True, exist_ok=True)
     try:
-        probe = workspace / ".smooth-bee-doctor"
+        probe = workspace / ".phaselogic-doctor"
         probe.touch()
         probe.unlink()
         ok = True
@@ -75,7 +75,7 @@ def run() -> bool:
     header = f"  {'CHECK':<{w_label}}  {'STATUS':<8}  DETAIL"
     div = "-" * (len(header) + w_detail)
 
-    print(f"\nsmooth-bee doctor\n{div}")
+    print(f"\nPhaseLogic doctor\n{div}")
     print(header)
     print(f"  {'-'*w_label}  {'-'*8}  {'-'*w_detail}")
 
@@ -92,9 +92,9 @@ def run() -> bool:
 
     print()
     if all_ok:
-        print(color.green("All checks passed. smooth-bee is ready."))
+        print(color.green("All checks passed. PhaseLogic is ready."))
     else:
-        print(color.red("Some checks failed. Fix the issues above before running smooth-bee."))
+        print(color.red("Some checks failed. Fix the issues above before running PhaseLogic."))
 
     # Agent performance stats from memory.db
     stats = memory.load_agent_stats()

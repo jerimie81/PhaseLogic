@@ -1,8 +1,8 @@
 """
-First-launch onboarding: collect API keys and explain smooth-bee.
+First-launch onboarding: collect API keys and explain PhaseLogic.
 
 Runs automatically before `new` and `resume` when any integration is missing.
-Saves entered keys to ~/.config/smooth-bee/config.toml.
+Saves entered keys to ~/.config/phaselogic/config.toml.
 """
 
 import subprocess
@@ -15,10 +15,10 @@ from smooth_bee import config as cfg_mod
 
 _PITCH = """
   Have an idea for an app but not sure how to build it?
-  smooth-bee turns your vision into real, working software — automatically.
+  PhaseLogic turns your vision into real, working software — automatically.
 
   You describe what you want in plain English.
-  smooth-bee coordinates a team of specialized AI agents that do the rest:
+  PhaseLogic coordinates a team of specialized AI agents that do the rest:
 
     {claude}  writes the specification and designs the architecture
     {gemini}  researches the best tools, frameworks, and approach
@@ -28,11 +28,11 @@ _PITCH = """
   The result is a complete, professional-grade project — structured,
   documented, and ready to publish. No coding experience required.
   No computer science degree needed. If you can describe your dream,
-  smooth-bee can build it.
+  PhaseLogic can build it.
 
   To start a project:
 
-    smooth-bee new "describe your app idea here"
+    phaselogic new "describe your app idea here"
 
 """
 
@@ -93,7 +93,7 @@ def _run(cfg: cfg_mod.Config) -> None:
 
     if new_keys:
         _write_user_config(cfg, new_keys)
-        saved_path = Path.home() / ".config" / "smooth-bee" / "config.toml"
+        saved_path = Path.home() / ".config" / "phaselogic" / "config.toml"
         print(color.green(f"\n  Keys saved → {saved_path}"))
 
     # Final status check
@@ -106,7 +106,7 @@ def _run(cfg: cfg_mod.Config) -> None:
         _ready_banner()
     else:
         print(color.yellow(f"  Still missing: {', '.join(still_missing)}"))
-        print("  You can complete setup anytime — run:  smooth-bee doctor\n")
+        print("  You can complete setup anytime — run:  phaselogic doctor\n")
         if _confirm("  Continue anyway with available agents? [y/N]: "):
             return
         sys.exit(0)
@@ -178,7 +178,7 @@ def _prompt_key(
 
 
 def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
-    user_cfg_path = Path.home() / ".config" / "smooth-bee" / "config.toml"
+    user_cfg_path = Path.home() / ".config" / "phaselogic" / "config.toml"
     user_cfg_path.parent.mkdir(parents=True, exist_ok=True)
 
     gemini_key = updates.get("gemini_api_key", cfg.gemini_api_key)
@@ -220,14 +220,14 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
 
 def _banner() -> None:
     sep = color.cyan_bold("=" * 54)
-    title = color.cyan_bold("  smooth-bee  —  setup wizard")
+    title = color.cyan_bold("  PhaseLogic  —  setup wizard")
     print(f"\n{sep}\n{title}\n{sep}\n")
 
 
 def _ready_banner() -> None:
     sep = color.cyan_bold("━" * 54)
     print(sep)
-    print(color.cyan_bold("  smooth-bee is ready. Here's how it works:\n"))
+    print(color.cyan_bold("  PhaseLogic is ready. Here's how it works:\n"))
     print(_PITCH.format(
         claude=color.cyan_bold("Claude "),
         gemini=color.cyan_bold("Gemini "),
