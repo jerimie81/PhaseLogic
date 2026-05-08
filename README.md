@@ -1,0 +1,176 @@
+# PhaseLogic
+
+**Build professional software from a plain English description.**
+
+PhaseLogic coordinates four specialized AI agents through a six-phase pipeline — from idea to tested, production-ready code — with no programming knowledge required.
+
+---
+
+## How it works
+
+You describe what you want to build. PhaseLogic runs it through six automated phases:
+
+| Phase | Agent | What happens |
+|-------|-------|--------------|
+| 1 — Spec | Claude (Sonnet) | Turns your description into a structured technical specification |
+| 2 — Feasibility | Kimi (Moonshot) | Assesses scope, flags risks, confirms the plan is buildable |
+| 3 — Research | Gemini (Flash) | Identifies the best frameworks, libraries, and toolchains |
+| 4 — Architecture | Claude (Sonnet) | Designs the file structure and assigns sections to agents |
+| 5 — Coding | Gemini + Kimi | Generates all source files in parallel |
+| 6 — Testing | Codex (GPT-4o) | Writes tests, fixes bugs, and audits for security |
+
+Each phase produces a reviewable artifact. Run with `--interactive` to inspect and edit outputs between phases.
+
+---
+
+## Requirements
+
+- Python 3.11+
+- [Claude Code CLI](https://claude.ai/code) (free, browser login)
+- Gemini API key — [get one free](https://aistudio.google.com/app/apikey)
+- Kimi API key — [Moonshot platform](https://platform.moonshot.cn/console/api-keys)
+- OpenAI API key — [platform.openai.com](https://platform.openai.com/api-keys)
+
+---
+
+## Installation
+
+**From source (recommended for now):**
+
+```bash
+git clone https://github.com/jerimie81/PhaseLogic.git
+cd PhaseLogic
+pip install -e .
+```
+
+**Debian/Ubuntu (.deb):**
+
+```bash
+./build_deb.sh
+sudo dpkg -i phaselogic_0.1.0_all.deb
+```
+
+---
+
+## Setup
+
+On first run, PhaseLogic walks you through entering your API keys:
+
+```bash
+phaselogic new "my project idea"
+```
+
+Or check your environment manually:
+
+```bash
+phaselogic doctor
+```
+
+Keys can also be set via environment variables:
+
+```bash
+export GEMINI_API_KEY=...
+export KIMI_API_KEY=...
+export OPENAI_API_KEY=...
+```
+
+Or in a config file at `~/.config/phaselogic/config.toml` (see `config.toml` for the full schema).
+
+---
+
+## Usage
+
+```bash
+# Start a new project
+phaselogic new "a REST API for tracking personal fitness goals"
+
+# With interactive phase review (pause and edit between phases)
+phaselogic new "a budget tracker app" --interactive
+
+# Control how many questions are asked before building
+phaselogic new "a web scraper" --aggressiveness 1   # minimal (2 questions)
+phaselogic new "a web scraper" --aggressiveness 5   # exhaustive (15 questions)
+
+# Resume an interrupted project
+phaselogic resume my-project-name
+
+# Resume from a specific phase
+phaselogic resume my-project-name --phase CODING
+
+# List all projects
+phaselogic list
+
+# Show project status and phase progress
+phaselogic status my-project-name
+
+# Tail the latest session log
+phaselogic logs my-project-name
+
+# Delete a project
+phaselogic delete my-project-name
+
+# Delete all failed projects
+phaselogic clean
+```
+
+---
+
+## Configuration
+
+`~/.config/phaselogic/config.toml` (user) or `/etc/phaselogic/config.toml` (system):
+
+```toml
+[claude]
+model = "claude-sonnet-4-6"
+
+[gemini]
+api_key = ""          # or GEMINI_API_KEY env var
+model = "gemini-2.0-flash"
+
+[kimi]
+api_key = ""          # or KIMI_API_KEY env var
+model = "moonshot-v1-32k"
+base_url = "https://api.moonshot.cn/v1"
+
+[codex]
+api_key = ""          # or OPENAI_API_KEY env var
+model = "gpt-4o"
+
+[orchestration]
+timeout_seconds = 120
+max_retries = 3
+retry_backoff_base = 2.0
+
+[intake]
+# 1=minimal  2=light  3=balanced (default)  4=thorough  5=exhaustive
+aggressiveness = 3
+```
+
+---
+
+## Output
+
+Generated files are written to:
+
+```
+~/.local/share/phaselogic/workspace/<project-name>/generated/
+```
+
+Each project workspace also contains phase artifacts (spec, architecture, test results) and session logs.
+
+---
+
+## Cross-project learning
+
+PhaseLogic remembers your preferences across projects using a local SQLite database (`~/.gemini/memory.db`). After a few projects it will:
+
+- Pre-fill answers based on your past choices
+- Skip redundant questions at low aggressiveness settings
+- Show estimated agent call times based on observed performance
+- Index generated files so future projects can reference prior work
+
+---
+
+## License
+
+MIT
