@@ -22,7 +22,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     prompt = tmpl.render(spec=spec, feasibility=feasibility)
 
     agent = GeminiAgent(cfg)
-    logger.info("  Calling Gemini for deep research...")
+    agent.phase_label = "phase 3"
     raw = agent.call_with_retry(prompt, _SYS, retries=cfg.max_retries, backoff_base=cfg.retry_backoff_base)
 
     result = _parse_json(raw, logger)

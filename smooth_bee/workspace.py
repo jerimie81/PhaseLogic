@@ -80,3 +80,65 @@ def get_phase5_dir(project_name: str) -> Path:
 
 def get_phase6_dir(project_name: str) -> Path:
     return get_path(project_name) / "phase6_results"
+
+
+def summarize_phase6(project_name: str) -> dict:
+    """Parse phase6_results/ and return test + security counts."""
+    phase6_dir = get_phase6_dir(project_name)
+    total = passed = failed = repaired = 0
+
+    if phase6_dir.exists():
+        for f in phase6_dir.glob("*_codex.json"):
+            try:
+                data = json.loads(f.read_text())
+                total += 1
+                status = data.get("overall_status", "")
+                if status in ("passed", "repaired"):
+                    passed += 1
+                elif status == "failed":
+                    failed += 1
+                repaired += data.get("failures_repaired", 0)
+            except Exception:
+                pass
+
+    security_issues: list = []
+    security_path = phase6_dir / "security_final.json" if phase6_dir.exists() else None
+    if security_path and security_path.exists():
+        try:
+            security_issues = json.loads(security_path.read_text())
+            if not isinstance(security_issues, list):
+                security_issues = []
+        except Exception:
+            pass
+
+    critical = sum(1 for i in security_issues if i.get("severity") == "critical")
+    high = sum(1 for i in security_issues if i.get("severity") == "high")
+    warnings = sum(1 for i in security_issues if i.get("severity") in ("medium", "low"))
+
+    return {
+        "sections_total": total,
+        "sections_passed": passed,
+        "sections_failed": failed,
+        "sections_repaired": repaired,
+        "security_total": len(security_issues),
+        "security_critical": critical,
+        "security_high": high,
+        "security_warnings": warnings,
+    }
+
+
+def count_generated_files(project_name: str) -> tuple[int, int]:
+    """Return (file_count, total_line_count) for the generated/ directory."""
+    gen_dir = get_generated_dir(project_name)
+    if not gen_dir.exists():
+        return 0, 0
+    file_count = 0
+    line_count = 0
+    for f in gen_dir.rglob("*"):
+        if f.is_file():
+            file_count += 1
+            try:
+                line_count += f.read_text(errors="replace").count("\n")
+            except Exception:
+                pass
+    return file_count, line_count

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from smooth_bee import workspace
+from smooth_bee import color
 
 _run_start: float | None = None
 _TOTAL_PHASES = 6
@@ -13,6 +14,12 @@ _TOTAL_PHASES = 6
 def start_run() -> None:
     global _run_start
     _run_start = time.monotonic()
+
+
+def elapsed_seconds() -> int:
+    if _run_start is None:
+        return 0
+    return int(time.monotonic() - _run_start)
 
 
 def get_logger(project_name: str) -> logging.Logger:
@@ -26,7 +33,7 @@ def get_logger(project_name: str) -> logging.Logger:
     if logger.handlers:
         return logger
 
-    fh = logging.FileHandler(log_file)
+    fh = logging.FileHandler(log_file, encoding="utf-8")
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
 
@@ -36,6 +43,10 @@ def get_logger(project_name: str) -> logging.Logger:
 
     logger.addHandler(fh)
     logger.addHandler(ch)
+
+    # Print log path so users know where to look
+    print(color.yellow(f"Logging to: {log_file}"))
+
     return logger
 
 
@@ -48,4 +59,9 @@ def phase_banner(logger: logging.Logger, phase_num: int, phase_name: str) -> Non
         elapsed_str = f"  ~{secs}s elapsed"
     sep = "=" * 50
     progress = f"  [{bar}] Phase {phase_num}/{_TOTAL_PHASES}{elapsed_str}"
-    logger.info(f"\n{sep}\n  PHASE {phase_num}: {phase_name}\n{progress}\n{sep}")
+    logger.info(
+        f"\n{color.cyan_bold(sep)}\n"
+        f"  {color.cyan_bold(f'PHASE {phase_num}: {phase_name}')}\n"
+        f"{progress}\n"
+        f"{color.cyan_bold(sep)}"
+    )

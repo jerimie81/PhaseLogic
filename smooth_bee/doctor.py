@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from smooth_bee import config as cfg_mod, paths
+from smooth_bee import config as cfg_mod, paths, color
 
 
 def run() -> bool:
@@ -81,16 +81,19 @@ def run() -> bool:
 
     all_ok = True
     for label, ok, detail, hint in checks:
-        status = "✓ ok  " if ok else "✗ FAIL"
+        if ok:
+            status = color.green("✓ ok  ")
+        else:
+            status = color.red_bold("✗ FAIL")
         print(f"  {label:<{w_label}}  {status}  {detail}")
         if not ok:
-            print(f"  {' '*w_label}           → {hint}")
+            print(f"  {' '*w_label}           {color.yellow(f'→ {hint}')}")
             all_ok = False
 
     print()
     if all_ok:
-        print("All checks passed. smooth-bee is ready.\n")
+        print(color.green("All checks passed. smooth-bee is ready.\n"))
     else:
-        print("Some checks failed. Fix the issues above before running smooth-bee.\n")
+        print(color.red("Some checks failed. Fix the issues above before running smooth-bee.\n"))
 
     return all_ok

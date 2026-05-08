@@ -21,6 +21,14 @@ def register_project(name: str, workspace_path: str) -> None:
         pass
 
 
+def deregister_project(workspace_path: str) -> None:
+    try:
+        with _conn() as conn:
+            conn.execute("DELETE FROM projects WHERE path = ?", (workspace_path,))
+    except Exception:
+        pass
+
+
 def log_phase(project_name: str, phase: str, error: Optional[str] = None) -> None:
     msg = f"smooth-bee [{project_name}] phase={phase}"
     if error:

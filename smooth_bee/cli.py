@@ -1,11 +1,12 @@
 import argparse
 import datetime
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-from smooth_bee import config, state as st, workspace as ws, memory
+from smooth_bee import color, config, state as st, workspace as ws, memory
 
 _PHASE_LABELS = [
     ("SPEC",         "SPEC — specification (Claude)"),
@@ -21,10 +22,11 @@ def _check_config(cfg) -> None:
     checks = config.validate(cfg)
     failures = [(label, note) for label, ok, note in checks if not ok]
     if failures:
-        print("smooth-bee: configuration error(s) — cannot start pipeline:")
+        print(color.red_bold("smooth-bee: configuration error(s) — cannot start pipeline:"))
         for label, note in failures:
-            print(f"  ✗  {label}: {note}")
-        print("\nRun 'smooth-bee doctor' for full diagnostics.")
+            print(f"  {color.red('✗')}  {label}: {note}")
+        hint = color.yellow("Run 'smooth-bee doctor' for full diagnostics.")
+        print(f"\n{hint}")
         sys.exit(1)
 
 
@@ -55,7 +57,7 @@ def cmd_new(args) -> None:
         print(f"Project '{name}' already exists. Use: smooth-bee resume {name}")
         sys.exit(1)
 
-    print(f"Starting project: {name}")
+    print(f"Starting project: {color.cyan_bold(name)}")
     print(f"Description: {description}")
 
     if args.dry_run:
@@ -118,10 +120,18 @@ def cmd_list(args) -> None:
     for p in projects:
         gen_dir = Path(p["path"]) / "generated"
         output = str(gen_dir) if gen_dir.exists() else p["path"]
+        status = p.get('status', '-')
+        # Apply color but preserve column width (color codes are invisible)
+        if status == 'done':
+            status_col = color.green(status) + " " * (8 - len(status))
+        elif status == 'failed':
+            status_col = color.red(status) + " " * (8 - len(status))
+        else:
+            status_col = f"{status:<8}"
         print(
             f"{p['name']:<{w}}  "
             f"{p['phase']:<14}  "
-            f"{p.get('status', '-'):<8}  "
+            f"{status_col}  "
             f"{_fmt_date(p.get('created_at', '')):<17}  "
             f"{output}"
         )
@@ -136,7 +146,7 @@ def cmd_status(args) -> None:
     s = st.load(project_dir)
     gen_dir = project_dir / "generated"
 
-    print(f"\nProject:     {s.project_name}")
+    print(f"\nProject:     {color.cyan_bold(s.project_name)}")
     print(f"Description: {s.description}")
     print(f"Phase:       {s.current_phase.value}")
     print(f"Created:     {_fmt_date(s.created_at)}")
@@ -148,9 +158,9 @@ def cmd_status(args) -> None:
     print("\nPhases:")
     for phase_val, label in _PHASE_LABELS:
         if phase_val in completed_values:
-            marker = "✓"
+            marker = color.green("✓")
         elif current_val == phase_val:
-            marker = "→"
+            marker = color.yellow("→")
         else:
             marker = " "
         print(f"  {marker}  {label}")
@@ -160,7 +170,7 @@ def cmd_status(args) -> None:
     if s.sections_tested:
         print(f"Sections tested: {len(s.sections_tested)}")
     if s.error_info:
-        print(f"\nError: {s.error_info}")
+        print(f"\n{color.red_bold('Error:')} {s.error_info}")
     print()
 
 
@@ -184,6 +194,96 @@ def cmd_logs(args) -> None:
     latest = logs[0]
     print(f"--- {latest.name} ---")
     subprocess.run(["tail", "-n", str(args.lines), str(latest)])
+
+
+def cmd_delete(args) -> None:
+    name = args.project_name
+    project_dir = ws.get_path(name)
+
+    if not project_dir.exists():
+        print(f"{color.red_bold('Error:')} Project '{name}' not found.")
+        sys.exit(1)
+
+    # Load state info for display
+    import json
+    phase = "unknown"
+    created_at = ""
+    status = "unknown"
+    state_file = project_dir / "state.json"
+    if state_file.exists():
+        try:
+            data = json.loads(state_file.read_text())
+            phase = data.get("current_phase", "unknown")
+            created_at = _fmt_date(data.get("created_at", ""))
+            if phase == "DONE":
+                status = "done"
+            elif phase == "FAILED":
+                status = "failed"
+            else:
+                status = "running"
+        except Exception:
+            pass
+
+    print(f"\nProject to delete:")
+    print(f"  Name:    {color.cyan_bold(name)}")
+    print(f"  Path:    {project_dir}")
+    print(f"  Phase:   {phase}")
+    print(f"  Status:  {status}")
+    print(f"  Created: {created_at}")
+    print()
+
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("Error: --yes required when stdin is not a TTY.")
+            sys.exit(1)
+        answer = input(f"Delete project '{name}'? [y/N]: ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("Aborted.")
+            return
+
+    try:
+        shutil.rmtree(project_dir)
+    except OSError as e:
+        print(f"{color.red_bold('Error:')} Could not delete {project_dir}: {e}")
+        sys.exit(1)
+
+    memory.deregister_project(str(project_dir))
+    print(color.green(f"Deleted project '{name}'."))
+
+
+def cmd_clean(args) -> None:
+    projects = ws.list_projects()
+    failed = [p for p in projects if p.get("status") == "failed"]
+
+    if not failed:
+        print("No failed projects found.")
+        return
+
+    print(f"Failed projects ({len(failed)}):")
+    for p in failed:
+        print(f"  {color.red(p['name']):<30}  {_fmt_date(p.get('created_at', ''))}")
+    print()
+
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("Error: --yes required when stdin is not a TTY.")
+            sys.exit(1)
+        answer = input(f"Delete all {len(failed)} failed projects? [y/N]: ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("Aborted.")
+            return
+
+    for p in failed:
+        path = Path(p["path"])
+        try:
+            if path.exists():
+                shutil.rmtree(path)
+            memory.deregister_project(p["path"])
+            print(f"  Deleted: {p['name']}")
+        except OSError as e:
+            print(f"  {color.red('Failed:')} {p['name']}: {e}")
+
+    print(color.green(f"\nCleaned {len(failed)} failed projects."))
 
 
 def main() -> None:
@@ -219,6 +319,15 @@ def main() -> None:
 
     p_doctor = sub.add_parser("doctor", help="Check environment and configuration")
     p_doctor.set_defaults(func=cmd_doctor)
+
+    p_delete = sub.add_parser("delete", help="Delete a project and its workspace")
+    p_delete.add_argument("project_name")
+    p_delete.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+    p_delete.set_defaults(func=cmd_delete)
+
+    p_clean = sub.add_parser("clean", help="Delete all failed projects")
+    p_clean.add_argument("--yes", "-y", action="store_true", help="Skip confirmation prompt")
+    p_clean.set_defaults(func=cmd_clean)
 
     args = parser.parse_args()
     args.func(args)

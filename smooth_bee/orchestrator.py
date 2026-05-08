@@ -135,11 +135,67 @@ class Orchestrator:
                 sys.exit(0)
 
     def _print_summary(self, state: ProjectState) -> None:
+        from smooth_bee import color
+
         gen_dir = ws.get_generated_dir(self.project_name)
+        summary = ws.summarize_phase6(self.project_name)
+        file_count, line_count = ws.count_generated_files(self.project_name)
+
+        secs = lg.elapsed_seconds()
+        mins, s = divmod(secs, 60)
+        duration = f"{mins}m {s}s" if mins else f"{s}s"
+
+        sep = color.cyan_bold("━" * 42)
+        ck = color.green("✓")
+        cr = color.red("✗")
+        warn = color.yellow("⚠")
+
+        lines = [
+            "",
+            sep,
+            color.cyan_bold("  smooth-bee: PROJECT COMPLETE"),
+            sep,
+            f"  Project:   {self.project_name}",
+            f"  Duration:  {duration}",
+            f"  Output:    {gen_dir}",
+            "",
+            "  Code generated:",
+            f"    {file_count} files  |  {line_count} lines",
+        ]
+
+        if summary["sections_total"] > 0:
+            lines += [
+                "",
+                "  Tests (phase 6):",
+                f"    {summary['sections_total']} sections tested",
+                f"    {ck} {summary['sections_passed']} passed   "
+                f"{cr} {summary['sections_failed']} failed   "
+                f"~ {summary['sections_repaired']} repaired",
+            ]
+            if summary["security_critical"] == 0 and summary["security_high"] == 0:
+                lines += ["", f"  Security:  {ck} No critical issues found"]
+                if summary["security_warnings"] > 0:
+                    lines.append(
+                        f"             {warn} {summary['security_warnings']} warnings"
+                        f" — see phase6_results/security_final.json"
+                    )
+            else:
+                lines += [
+                    "",
+                    f"  Security:  {cr} {summary['security_critical']} critical,"
+                    f" {summary['security_high']} high"
+                    f" — see phase6_results/security_final.json",
+                ]
+
+        lines += [
+            "",
+            f"  smooth-bee logs {self.project_name}",
+            sep,
+            "",
+        ]
+
+        print("\n".join(lines))
         self.logger.info(
-            f"\n{'='*50}\n"
-            f"  BUILD COMPLETE: {self.project_name}\n"
-            f"  Generated project: {gen_dir}\n"
-            f"  Sections: {len(state.sections_coded)} coded, {len(state.sections_tested)} tested\n"
-            f"{'='*50}"
+            f"BUILD COMPLETE: {self.project_name} | {file_count} files | "
+            f"{summary['sections_passed']}/{summary['sections_total']} tests passed"
         )

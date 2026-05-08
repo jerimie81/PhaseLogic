@@ -21,7 +21,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     prompt = tmpl.render(description=state.description)
 
     agent = ClaudeAgent(cfg)
-    logger.debug("  Calling Claude...")
+    agent.phase_label = "phase 1"
     raw = agent.call_with_retry(prompt, _SYS, retries=cfg.max_retries, backoff_base=cfg.retry_backoff_base)
 
     spec = _parse_json(raw, logger)

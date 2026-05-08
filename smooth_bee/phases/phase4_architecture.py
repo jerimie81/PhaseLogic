@@ -24,7 +24,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     prompt = tmpl.render(spec=spec, feasibility=feasibility, research=research)
 
     agent = ClaudeAgent(cfg)
-    logger.info("  Calling Claude for architecture design...")
+    agent.phase_label = "phase 4"
     raw = agent.call_with_retry(prompt, _SYS, retries=cfg.max_retries, backoff_base=cfg.retry_backoff_base)
 
     arch = _parse_json(raw, logger)
