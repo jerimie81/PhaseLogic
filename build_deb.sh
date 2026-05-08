@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-VERSION=$(python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); from smooth_bee import __version__; print(__version__)")
+VERSION=$(python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); from phaselogic import __version__; print(__version__)")
 PKG="phaselogic_${VERSION}_all"
 STAGING="/tmp/${PKG}"
 PY_DIST="/usr/lib/python3/dist-packages"
@@ -22,10 +22,10 @@ chmod 0755 "$STAGING/DEBIAN/postinst" "$STAGING/DEBIAN/prerm"
 
 # --- Python package ---
 mkdir -p "$STAGING${PY_DIST}"
-cp -r "$SCRIPT_DIR/smooth_bee" "$STAGING${PY_DIST}/smooth_bee"
+cp -r "$SCRIPT_DIR/phaselogic" "$STAGING${PY_DIST}/phaselogic"
 # Remove __pycache__ and .pyc artifacts
-find "$STAGING${PY_DIST}/smooth_bee" -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
-find "$STAGING${PY_DIST}/smooth_bee" -name '*.pyc' -delete 2>/dev/null || true
+find "$STAGING${PY_DIST}/phaselogic" -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
+find "$STAGING${PY_DIST}/phaselogic" -name '*.pyc' -delete 2>/dev/null || true
 
 # --- Prompt templates ---
 mkdir -p "$STAGING/usr/share/phaselogic/prompts"
@@ -39,7 +39,7 @@ cp "$SCRIPT_DIR/config.toml" "$STAGING/etc/phaselogic/config.toml"
 mkdir -p "$STAGING/usr/bin"
 cat > "$STAGING/usr/bin/phaselogic" << 'PYEOF'
 #!/usr/bin/python3
-from smooth_bee.cli import main
+from phaselogic.cli import main
 main()
 PYEOF
 chmod 0755 "$STAGING/usr/bin/phaselogic"

@@ -7,7 +7,7 @@ setup(
     install_requires=["jinja2>=3.1"],
     entry_points={
         "console_scripts": [
-            "phaselogic=smooth_bee.cli:main",
+            "phaselogic=phaselogic.cli:main",
         ]
     },
     python_requires=">=3.11",

@@ -9,8 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
-from smooth_bee import color
-from smooth_bee import config as cfg_mod
+from phaselogic import color
+from phaselogic import config as cfg_mod
 
 
 _PITCH = """
@@ -21,8 +21,7 @@ _PITCH = """
   PhaseLogic coordinates a team of specialized AI agents that do the rest:
 
     {claude}  writes the specification and designs the architecture
-    {gemini}  researches the best tools, frameworks, and approach
-    {kimi}    checks feasibility and generates the source code
+    {gemini}  checks feasibility, researches tools, and generates the code
     {codex}   writes tests, finds bugs, and audits for security
 
   The result is a complete, professional-grade project — structured,
@@ -49,13 +48,13 @@ def run_if_needed() -> None:
 def _run(cfg: cfg_mod.Config) -> None:
     _banner()
     print(color.yellow("  One or more AI integrations need to be set up before you can build.\n"))
-    print(f"  {color.cyan_bold('Step 1 of 4 — Claude (specification + architecture)')}")
+    print(f"  {color.cyan_bold('Step 1 of 3 — Claude (specification + architecture)')}")
     print("  Claude Code is a free CLI tool from Anthropic.")
     print("  It uses browser-based login — no API key needed.\n")
 
     _setup_claude()
 
-    print(f"\n  {color.cyan_bold('Step 2 of 4 — Google Gemini (research + planning)')}")
+    print(f"\n  {color.cyan_bold('Step 2 of 3 — Google Gemini (feasibility + research + code generation)')}")
     gemini_key = _prompt_key(
         display_name="Gemini",
         env_var="GEMINI_API_KEY",
@@ -64,16 +63,7 @@ def _run(cfg: cfg_mod.Config) -> None:
         hint="Free tier available — no credit card required.",
     )
 
-    print(f"\n  {color.cyan_bold('Step 3 of 4 — Moonshot Kimi (feasibility + code generation)')}")
-    kimi_key = _prompt_key(
-        display_name="Kimi",
-        env_var="KIMI_API_KEY",
-        get_key_url="https://platform.moonshot.cn/console/api-keys",
-        current=cfg.kimi_api_key,
-        hint="Requires a Moonshot account (free registration).",
-    )
-
-    print(f"\n  {color.cyan_bold('Step 4 of 4 — OpenAI (testing + security review)')}")
+    print(f"\n  {color.cyan_bold('Step 3 of 3 — OpenAI (testing + security review)')}")
     openai_key = _prompt_key(
         display_name="OpenAI",
         env_var="OPENAI_API_KEY",
@@ -86,8 +76,6 @@ def _run(cfg: cfg_mod.Config) -> None:
     new_keys = {}
     if gemini_key:
         new_keys["gemini_api_key"] = gemini_key
-    if kimi_key:
-        new_keys["kimi_api_key"] = kimi_key
     if openai_key:
         new_keys["openai_api_key"] = openai_key
 
@@ -182,8 +170,7 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
     user_cfg_path.parent.mkdir(parents=True, exist_ok=True)
 
     gemini_key = updates.get("gemini_api_key", cfg.gemini_api_key)
-    kimi_key   = updates.get("kimi_api_key",   cfg.kimi_api_key)
-    openai_key = updates.get("openai_api_key",  cfg.openai_api_key)
+    openai_key = updates.get("openai_api_key", cfg.openai_api_key)
 
     content = (
         f'[claude]\n'
@@ -192,11 +179,6 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
         f'[gemini]\n'
         f'api_key = "{gemini_key}"\n'
         f'model = "{cfg.gemini_model}"\n'
-        f'\n'
-        f'[kimi]\n'
-        f'api_key = "{kimi_key}"\n'
-        f'model = "{cfg.kimi_model}"\n'
-        f'base_url = "{cfg.kimi_base_url}"\n'
         f'\n'
         f'[codex]\n'
         f'api_key = "{openai_key}"\n'
@@ -231,7 +213,6 @@ def _ready_banner() -> None:
     print(_PITCH.format(
         claude=color.cyan_bold("Claude "),
         gemini=color.cyan_bold("Gemini "),
-        kimi=color.cyan_bold("Kimi   "),
         codex=color.cyan_bold("Codex  "),
     ))
     print(sep)

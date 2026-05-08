@@ -4,11 +4,11 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from smooth_bee.agents.claude_agent import ClaudeAgent
-from smooth_bee.config import Config
-from smooth_bee import paths
-from smooth_bee.state import ProjectState
-from smooth_bee import workspace as ws
+from phaselogic.agents.claude_agent import ClaudeAgent
+from phaselogic.config import Config
+from phaselogic import paths
+from phaselogic.state import ProjectState
+from phaselogic import workspace as ws
 
 _PROMPTS = paths.prompts_dir()
 _SYS = "You are a software architect. Output only valid JSON with no markdown fences."
@@ -20,7 +20,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     # Load intake brief if one was collected before the pipeline started
     intake_context: str = ""
     try:
-        from smooth_bee.intake import brief_to_context
+        from phaselogic.intake import brief_to_context
         brief = ws.read_artifact(state.project_name, "phase0_intake.json")
         intake_context = brief_to_context(brief)
         logger.info("  Intake brief loaded — enriching spec prompt.")

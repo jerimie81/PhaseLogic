@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from smooth_bee import paths
+from phaselogic import paths
 
 
 def _root() -> Path:

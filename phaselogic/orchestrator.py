@@ -4,11 +4,11 @@ import os
 import subprocess
 import sys
 
-from smooth_bee import state as st, workspace as ws, logger as lg
-from smooth_bee.agents.base import AgentError
-from smooth_bee.config import Config
-from smooth_bee.state import Phase, ProjectState
-from smooth_bee.phases import (
+from phaselogic import state as st, workspace as ws, logger as lg
+from phaselogic.agents.base import AgentError
+from phaselogic.config import Config
+from phaselogic.state import Phase, ProjectState
+from phaselogic.phases import (
     phase1_spec,
     phase2_feasibility,
     phase3_research,
@@ -16,7 +16,7 @@ from smooth_bee.phases import (
     phase5_coding,
     phase6_testing,
 )
-from smooth_bee import memory
+from phaselogic import memory
 
 
 _REVIEW_ARTIFACTS: dict[Phase, str] = {
@@ -75,7 +75,7 @@ class Orchestrator:
         phase1_spec.run(state, self.cfg, self.logger)
 
     def _run_feasibility(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 2, "FEASIBILITY (Kimi)")
+        lg.phase_banner(self.logger, 2, "FEASIBILITY (Gemini)")
         phase2_feasibility.run(state, self.cfg, self.logger)
 
     def _run_research(self, state: ProjectState) -> None:
@@ -140,7 +140,7 @@ class Orchestrator:
                 sys.exit(0)
 
     def _print_summary(self, state: ProjectState) -> None:
-        from smooth_bee import color
+        from phaselogic import color
 
         gen_dir = ws.get_generated_dir(self.project_name)
         summary = ws.summarize_phase6(self.project_name)

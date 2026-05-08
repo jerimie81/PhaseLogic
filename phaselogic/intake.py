@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from smooth_bee import color, memory as mem
+from phaselogic import color, memory as mem
 
 # Free-text questions we don't learn preferences from (project-specific)
 _FREE_TEXT_ONLY = {"core_purpose", "must_have", "must_not", "extra_context"}

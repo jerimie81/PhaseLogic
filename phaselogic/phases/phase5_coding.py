@@ -8,12 +8,11 @@ from dataclasses import dataclass, field
 
 from jinja2 import Environment, FileSystemLoader
 
-from smooth_bee.agents.gemini_agent import GeminiAgent
-from smooth_bee.agents.kimi_agent import KimiAgent
-from smooth_bee.config import Config
-from smooth_bee import color, memory, paths
-from smooth_bee.state import ProjectState
-from smooth_bee import workspace as ws
+from phaselogic.agents.gemini_agent import GeminiAgent
+from phaselogic.config import Config
+from phaselogic import color, memory, paths
+from phaselogic.state import ProjectState
+from phaselogic import workspace as ws
 
 _PROMPTS = paths.prompts_dir()
 _SYS = "You are an expert software engineer. Output only valid JSON with no markdown fences."
@@ -99,30 +98,24 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     ordered = _topological_sort(sections)
 
     already_coded = set(state.sections_coded)
-    gemini_queue = [s for s in ordered if s["assigned_to"] == "gemini" and s["section_id"] not in already_coded]
-    kimi_queue = [s for s in ordered if s["assigned_to"] == "kimi" and s["section_id"] not in already_coded]
+    queue = [s for s in ordered if s["section_id"] not in already_coded]
 
-    if not gemini_queue and not kimi_queue:
+    if not queue:
         logger.info("  All sections already coded. Skipping.")
         return
 
     # Build shared status table
     statuses: dict[str, _SectionStatus] = {}
-    for s in gemini_queue:
+    for s in queue:
         statuses[s["section_id"]] = _SectionStatus(s["section_id"], "gemini")
-    for s in kimi_queue:
-        statuses[s["section_id"]] = _SectionStatus(s["section_id"], "kimi")
 
     lock = threading.Lock()
     table = _TableUpdater(statuses, lock)
 
     gemini_agent = GeminiAgent(cfg)
-    kimi_agent = KimiAgent(cfg)
     # Disable per-call spinners — the live table provides status instead
     gemini_agent.phase_label = "phase 5"
     gemini_agent.spinner_enabled = False
-    kimi_agent.phase_label = "phase 5"
-    kimi_agent.spinner_enabled = False
 
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
     coded_cache: dict = {}
@@ -174,15 +167,11 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     failed = False
 
     try:
-        with ThreadPoolExecutor(max_workers=2) as pool:
-            futures = {}
-            for section in gemini_queue:
-                fut = pool.submit(_run_section, section, gemini_agent, "phase5_gemini_code.j2")
-                futures[fut] = section["section_id"]
-            for section in kimi_queue:
-                fut = pool.submit(_run_section, section, kimi_agent, "phase5_kimi_code.j2")
-                futures[fut] = section["section_id"]
-
+        with ThreadPoolExecutor(max_workers=3) as pool:
+            futures = {
+                pool.submit(_run_section, section, gemini_agent, "phase5_gemini_code.j2"): section["section_id"]
+                for section in queue
+            }
             for fut in as_completed(futures):
                 sid = futures[fut]
                 try:

@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from smooth_bee import config as cfg_mod, memory, paths, color
+from phaselogic import config as cfg_mod, memory, paths, color
 
 
 def run() -> bool:
@@ -45,11 +45,6 @@ def run() -> bool:
     ok = bool(cfg.gemini_api_key)
     checks.append(("Gemini API key", ok, "present" if ok else "missing",
                    "set GEMINI_API_KEY or [gemini] api_key in config.toml" if not ok else ""))
-
-    # Kimi API key
-    ok = bool(cfg.kimi_api_key)
-    checks.append(("Kimi API key", ok, "present" if ok else "missing",
-                   "set KIMI_API_KEY or [kimi] api_key in config.toml" if not ok else ""))
 
     # Codex/OpenAI key
     ok = bool(cfg.openai_api_key)

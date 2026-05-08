@@ -6,11 +6,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from smooth_bee import color, config, state as st, workspace as ws, memory
+from phaselogic import color, config, state as st, workspace as ws, memory
 
 _PHASE_LABELS = [
     ("SPEC",         "SPEC — specification (Claude)"),
-    ("FEASIBILITY",  "FEASIBILITY — feasibility check (Kimi)"),
+    ("FEASIBILITY",  "FEASIBILITY — feasibility check (Gemini)"),
     ("RESEARCH",     "RESEARCH — research & planning (Gemini)"),
     ("ARCHITECTURE", "ARCHITECTURE — design (Claude)"),
     ("CODING",       "CODING — code generation (Gemini + Kimi)"),
@@ -48,7 +48,7 @@ def _slugify(text: str) -> str:
 
 
 def cmd_new(args) -> None:
-    from smooth_bee import onboarding, intake as intake_mod
+    from phaselogic import onboarding, intake as intake_mod
     onboarding.run_if_needed()
     cfg = config.load()
 
@@ -93,12 +93,12 @@ def cmd_new(args) -> None:
     ws.write_artifact(name, "phase0_intake.json", brief)
     memory.register_project(name, str(project_dir))
 
-    from smooth_bee.orchestrator import Orchestrator
+    from phaselogic.orchestrator import Orchestrator
     Orchestrator(name, cfg, interactive=args.interactive).run()
 
 
 def cmd_resume(args) -> None:
-    from smooth_bee import onboarding
+    from phaselogic import onboarding
     onboarding.run_if_needed()
     cfg = config.load()
     _check_config(cfg)
@@ -124,7 +124,7 @@ def cmd_resume(args) -> None:
             st.save(state, project_dir)
             print(f"Rewound to phase: {state.current_phase.value}")
 
-    from smooth_bee.orchestrator import Orchestrator
+    from phaselogic.orchestrator import Orchestrator
     Orchestrator(name, cfg, interactive=args.interactive).run()
 
 
@@ -196,7 +196,7 @@ def cmd_status(args) -> None:
 
 
 def cmd_doctor(args) -> None:
-    from smooth_bee import doctor
+    from phaselogic import doctor
     ok = doctor.run()
     if not ok:
         sys.exit(1)

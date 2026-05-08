@@ -285,7 +285,7 @@ def index_generated_files(project_name: str, workspace_path: str) -> int:
     This allows future projects to query what the user has built before,
     giving Claude richer context in Phase 1.
     """
-    from smooth_bee import workspace as ws
+    from phaselogic import workspace as ws
     gen_dir = ws.get_generated_dir(project_name)
     if not gen_dir.exists():
         return 0

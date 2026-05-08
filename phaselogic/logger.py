@@ -4,8 +4,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
-from smooth_bee import workspace
-from smooth_bee import color
+from phaselogic import workspace
+from phaselogic import color
 
 _run_start: float | None = None
 _TOTAL_PHASES = 6

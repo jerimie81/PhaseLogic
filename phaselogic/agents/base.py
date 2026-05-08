@@ -25,8 +25,8 @@ class AgentAdapter(ABC):
         retries: int = 3,
         backoff_base: float = 2.0,
     ) -> str:
-        from smooth_bee.spinner import Spinner
-        from smooth_bee import memory
+        from phaselogic.spinner import Spinner
+        from phaselogic import memory
 
         label = f"Calling {self.name}"
         if self.phase_label:

@@ -1,8 +1,8 @@
 import requests
 from typing import Optional
 
-from smooth_bee.agents.base import AgentAdapter, AgentError
-from smooth_bee.config import Config
+from phaselogic.agents.base import AgentAdapter, AgentError
+from phaselogic.config import Config
 
 
 class KimiAgent(AgentAdapter):

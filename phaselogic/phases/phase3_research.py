@@ -3,11 +3,11 @@ import logging
 
 from jinja2 import Environment, FileSystemLoader
 
-from smooth_bee.agents.gemini_agent import GeminiAgent
-from smooth_bee.config import Config
-from smooth_bee import paths
-from smooth_bee.state import ProjectState
-from smooth_bee import workspace as ws
+from phaselogic.agents.gemini_agent import GeminiAgent
+from phaselogic.config import Config
+from phaselogic import paths
+from phaselogic.state import ProjectState
+from phaselogic import workspace as ws
 
 _PROMPTS = paths.prompts_dir()
 _SYS = "You are a deep technical researcher. Output only valid JSON with no markdown fences."

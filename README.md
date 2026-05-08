@@ -13,10 +13,10 @@ You describe what you want to build. PhaseLogic runs it through six automated ph
 | Phase | Agent | What happens |
 |-------|-------|--------------|
 | 1 — Spec | Claude (Sonnet) | Turns your description into a structured technical specification |
-| 2 — Feasibility | Kimi (Moonshot) | Assesses scope, flags risks, confirms the plan is buildable |
+| 2 — Feasibility | Gemini (Flash) | Assesses scope, flags risks, confirms the plan is buildable |
 | 3 — Research | Gemini (Flash) | Identifies the best frameworks, libraries, and toolchains |
 | 4 — Architecture | Claude (Sonnet) | Designs the file structure and assigns sections to agents |
-| 5 — Coding | Gemini + Kimi | Generates all source files in parallel |
+| 5 — Coding | Gemini (Flash) | Generates all source files in parallel |
 | 6 — Testing | Codex (GPT-4o) | Writes tests, fixes bugs, and audits for security |
 
 Each phase produces a reviewable artifact. Run with `--interactive` to inspect and edit outputs between phases.
@@ -28,7 +28,6 @@ Each phase produces a reviewable artifact. Run with `--interactive` to inspect a
 - Python 3.11+
 - [Claude Code CLI](https://claude.ai/code) (free, browser login)
 - Gemini API key — [get one free](https://aistudio.google.com/app/apikey)
-- Kimi API key — [Moonshot platform](https://platform.moonshot.cn/console/api-keys)
 - OpenAI API key — [platform.openai.com](https://platform.openai.com/api-keys)
 
 ---
@@ -126,11 +125,6 @@ model = "claude-sonnet-4-6"
 [gemini]
 api_key = ""          # or GEMINI_API_KEY env var
 model = "gemini-2.0-flash"
-
-[kimi]
-api_key = ""          # or KIMI_API_KEY env var
-model = "moonshot-v1-32k"
-base_url = "https://api.moonshot.cn/v1"
 
 [codex]
 api_key = ""          # or OPENAI_API_KEY env var
