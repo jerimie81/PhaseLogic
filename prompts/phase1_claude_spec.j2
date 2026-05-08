@@ -1,17 +1,37 @@
-You are a senior software architect. A user has described a software project. Extract a structured specification from it.
+You are a senior software architect. A user has described a software project.
+Your job is to extract a precise, actionable specification from their input.
 
-PROJECT DESCRIPTION:
+{% if intake %}
+{{ intake }}
+
+{% endif %}
+## Raw Project Description
+
 {{ description }}
 
+## Your Task
+
+Using both the interview summary (if provided) and the raw description, extract a
+complete structured specification. The interview answers are authoritative — if the
+user said "Android APK", the target_platform must reflect that exactly.
+
 Return ONLY a valid JSON object with exactly these keys:
+
 {
-  "project_name": "<short slug, lowercase, hyphens>",
-  "project_type": "<webapp|cli|library|mobile|api|desktop|other>",
-  "primary_language": "<e.g. Python, TypeScript, Rust, Go>",
-  "target_platform": "<e.g. Linux, Web, Android, Cross-platform>",
+  "project_name": "<short slug, lowercase, hyphens only>",
+  "project_type": "<webapp|cli|library|mobile|api|desktop|service|game|other>",
+  "primary_language": "<e.g. Python, TypeScript, Kotlin, Rust, Go — or 'TBD'>",
+  "target_platform": "<e.g. Android, Linux, Web, Windows, Cross-platform>",
+  "output_format": "<e.g. APK, .deb, .exe, Docker image, binary, npm package>",
+  "ui_type": "<none|cli|tui|web|native_gui|mobile>",
+  "data_storage": "<none|files|sqlite|cloud_db|accounts>",
+  "connectivity": "<offline|optional|required|is_server>",
+  "target_audience": "<personal|small_group|public|professional>",
   "core_features": ["<feature 1>", "<feature 2>", "..."],
   "constraints": ["<constraint 1>", "..."],
-  "success_criteria": ["<measurable outcome 1>", "..."]
+  "success_criteria": ["<measurable outcome 1>", "..."],
+  "sensitive_data": "<none|personal|health|financial|legal>",
+  "scale": "<solo|small|medium|large|unknown>"
 }
 
 Output ONLY valid JSON. No markdown fences, no commentary, no prose.

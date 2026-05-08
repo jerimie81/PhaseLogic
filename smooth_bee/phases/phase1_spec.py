@@ -16,9 +16,20 @@ _SYS = "You are a software architect. Output only valid JSON with no markdown fe
 
 def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     logger.info("  Rendering phase 1 prompt...")
+
+    # Load intake brief if one was collected before the pipeline started
+    intake_context: str = ""
+    try:
+        from smooth_bee.intake import brief_to_context
+        brief = ws.read_artifact(state.project_name, "phase0_intake.json")
+        intake_context = brief_to_context(brief)
+        logger.info("  Intake brief loaded — enriching spec prompt.")
+    except Exception:
+        pass
+
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
     tmpl = env.get_template("phase1_claude_spec.j2")
-    prompt = tmpl.render(description=state.description)
+    prompt = tmpl.render(description=state.description, intake=intake_context)
 
     agent = ClaudeAgent(cfg)
     agent.phase_label = "phase 1"

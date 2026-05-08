@@ -22,6 +22,7 @@ class Config:
     timeout_seconds: int = 120
     max_retries: int = 3
     retry_backoff_base: float = 2.0
+    intake_aggressiveness: int = 3
 
 
 def load() -> Config:
@@ -55,6 +56,7 @@ def load() -> Config:
         timeout_seconds=int(orch.get("timeout_seconds", 120)),
         max_retries=int(orch.get("max_retries", 3)),
         retry_backoff_base=float(orch.get("retry_backoff_base", 2.0)),
+        intake_aggressiveness=int(raw.get("intake", {}).get("aggressiveness", 3)),
     )
 
 

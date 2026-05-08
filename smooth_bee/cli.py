@@ -48,9 +48,11 @@ def _slugify(text: str) -> str:
 
 
 def cmd_new(args) -> None:
-    from smooth_bee import onboarding
+    from smooth_bee import onboarding, intake as intake_mod
     onboarding.run_if_needed()
     cfg = config.load()
+
+    # Collect description — from arg, or prompt if at a TTY
     description = args.description
     if not description:
         if not sys.stdin.isatty():
@@ -60,14 +62,18 @@ def cmd_new(args) -> None:
         if not description:
             print("Error: description cannot be empty.")
             sys.exit(1)
-    name = args.name if args.name else _slugify(description)
 
+    name = args.name if args.name else _slugify(description)
     project_dir = ws.get_path(name)
     if project_dir.exists():
         print(f"Project '{name}' already exists. Use: smooth-bee resume {name}")
         sys.exit(1)
 
-    print(f"Starting project: {color.cyan_bold(name)}")
+    # Run intake interview (respects --aggressiveness flag or config default)
+    agg = args.aggressiveness if args.aggressiveness is not None else cfg.intake_aggressiveness
+    brief = intake_mod.run(description, aggressiveness=agg)
+
+    print(f"\nStarting project: {color.cyan_bold(name)}")
     print(f"Description: {description}")
 
     if args.dry_run:
@@ -76,12 +82,15 @@ def cmd_new(args) -> None:
                                     "ARCHITECTURE (Claude)", "CODING (Gemini+Kimi)", "TESTING (Codex)"], 1):
             print(f"  Phase {i}: {phase}")
         print(f"\nWorkspace would be: {project_dir}")
+        if brief.get("required_toolchains"):
+            print(f"Required toolchains: {', '.join(brief['required_toolchains'])}")
         return
 
     _check_config(cfg)
 
     ws.create(name)
     state = st.create(name, description, project_dir)
+    ws.write_artifact(name, "phase0_intake.json", brief)
     memory.register_project(name, str(project_dir))
 
     from smooth_bee.orchestrator import Orchestrator
@@ -309,6 +318,9 @@ def main() -> None:
     p_new.add_argument("--dry-run", action="store_true", help="Show pipeline steps without calling agents")
     p_new.add_argument("--interactive", action="store_true",
                        help="Pause after each phase to review output before continuing")
+    p_new.add_argument("--aggressiveness", type=int, choices=range(1, 6), metavar="1-5",
+                       default=None,
+                       help="Interview depth: 1=minimal  3=balanced (default)  5=exhaustive")
     p_new.set_defaults(func=cmd_new)
 
     p_resume = sub.add_parser("resume", help="Resume an interrupted project")

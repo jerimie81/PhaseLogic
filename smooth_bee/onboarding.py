@@ -206,6 +206,10 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
         f'timeout_seconds = {cfg.timeout_seconds}\n'
         f'max_retries = {cfg.max_retries}\n'
         f'retry_backoff_base = {cfg.retry_backoff_base}\n'
+        f'\n'
+        f'[intake]\n'
+        f'# Question aggressiveness: 1=minimal  2=light  3=balanced  4=thorough  5=exhaustive\n'
+        f'aggressiveness = {cfg.intake_aggressiveness}\n'
     )
     user_cfg_path.write_text(content, encoding="utf-8")
 

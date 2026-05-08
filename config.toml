@@ -18,3 +18,9 @@ model = "gpt-4o"
 timeout_seconds = 120
 max_retries = 3
 retry_backoff_base = 2.0
+
+[intake]
+# How aggressively to interview the user before starting a project.
+# 1=minimal (2 questions)  2=light (4)  3=balanced (7, default)
+# 4=thorough (11)          5=exhaustive (15)
+aggressiveness = 3
