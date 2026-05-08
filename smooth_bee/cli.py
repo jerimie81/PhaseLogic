@@ -48,8 +48,18 @@ def _slugify(text: str) -> str:
 
 
 def cmd_new(args) -> None:
+    from smooth_bee import onboarding
+    onboarding.run_if_needed()
     cfg = config.load()
     description = args.description
+    if not description:
+        if not sys.stdin.isatty():
+            print("Error: description is required when stdin is not a TTY.")
+            sys.exit(1)
+        description = input("Project description: ").strip()
+        if not description:
+            print("Error: description cannot be empty.")
+            sys.exit(1)
     name = args.name if args.name else _slugify(description)
 
     project_dir = ws.get_path(name)
@@ -79,6 +89,8 @@ def cmd_new(args) -> None:
 
 
 def cmd_resume(args) -> None:
+    from smooth_bee import onboarding
+    onboarding.run_if_needed()
     cfg = config.load()
     _check_config(cfg)
     name = args.project_name
@@ -291,7 +303,8 @@ def main() -> None:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_new = sub.add_parser("new", help="Start a new project")
-    p_new.add_argument("description", help="Project description in plain English")
+    p_new.add_argument("description", nargs="?", default=None,
+                       help="Project description in plain English (prompted if omitted)")
     p_new.add_argument("--name", help="Override auto-generated project name")
     p_new.add_argument("--dry-run", action="store_true", help="Show pipeline steps without calling agents")
     p_new.add_argument("--interactive", action="store_true",
