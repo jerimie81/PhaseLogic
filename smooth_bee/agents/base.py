@@ -26,16 +26,30 @@ class AgentAdapter(ABC):
         backoff_base: float = 2.0,
     ) -> str:
         from smooth_bee.spinner import Spinner
+        from smooth_bee import memory
+
         label = f"Calling {self.name}"
         if self.phase_label:
             label += f" ({self.phase_label})"
+
+        avg = memory.agent_avg_seconds(self.name)
+
         last_err = None
         for attempt in range(retries):
-            with Spinner(label, enabled=self.spinner_enabled):
+            t_start = time.monotonic()
+            succeeded = False
+            with Spinner(label, enabled=self.spinner_enabled, avg_seconds=avg):
                 try:
-                    return self.call(prompt, system_prompt)
+                    result = self.call(prompt, system_prompt)
+                    succeeded = True
+                    return result
                 except AgentError as e:
                     last_err = e
+                finally:
+                    duration = time.monotonic() - t_start
+                    memory.log_agent_call(self.name, duration, succeeded)
+
             if attempt < retries - 1:
                 time.sleep(backoff_base ** attempt)
+
         raise last_err

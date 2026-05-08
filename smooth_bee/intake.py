@@ -18,7 +18,10 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from smooth_bee import color
+from smooth_bee import color, memory as mem
+
+# Free-text questions we don't learn preferences from (project-specific)
+_FREE_TEXT_ONLY = {"core_purpose", "must_have", "must_not", "extra_context"}
 
 # ---------------------------------------------------------------------------
 # Question bank
@@ -344,60 +347,138 @@ def run(description: str, aggressiveness: int = 3) -> dict:
     """
     Run the intake interview. Returns a brief dict to be stored as
     phase0_intake.json and injected into the Phase 1 prompt.
+
+    Memory integration:
+    - Loads past preferences from memory.db before the interview
+    - For questions where a preference is established (count ≥ 2), shows a
+      memory hint and allows Enter to accept the remembered value
+    - Questions with a strong preference (count ≥ 3) can be auto-skipped
+      when aggressiveness ≤ 2
+    - Saves the new answers back to memory.db after the interview
     """
     agg = max(1, min(5, aggressiveness))
+
+    # Load accumulated preferences from past projects
+    prefs = mem.load_user_preferences()
+    q_prefs: dict = prefs.get("question_prefs", {})
+    projects_done = prefs.get("projects_completed", 0)
+
     print()
     _section_header("Project Discovery Interview")
+
+    if projects_done > 0:
+        mem_note = color.yellow(f"Memory: {projects_done} past project(s) — known preferences pre-filled below.")
+        print(f"  {mem_note}\n")
+
     print(
         f"  {color.yellow(f'Aggressiveness: {agg}/5')}  "
         f"{'·' * agg}{'·' * (5 - agg)}\n"
-        f"  Answer each question — numbers for choices, or type freely.\n"
-        f"  Press Enter on any optional question to skip it.\n"
+        f"  Number keys for choices · Enter to accept a remembered default · Enter to skip optional.\n"
     )
 
     brief: dict = {"raw_description": description}
     custom_notes: list[str] = []
+    skipped_count = 0
 
     for q in _QUESTIONS:
         if q["wave"] > agg:
             continue
-        _ask_question(q, brief, custom_notes)
+
+        qid = q["id"]
+        pref = q_prefs.get(qid)
+        pref_count = pref.get("count", 0) if pref else 0
+        pref_value = pref.get("value") if pref else None
+
+        # Auto-skip strongly established preferences at lower aggressiveness
+        if (pref_count >= 3 and agg <= 2 and qid not in _FREE_TEXT_ONLY
+                and q.get("choices")):
+            brief[qid] = pref_value
+            skipped_count += 1
+            _print_auto_accepted(q["text"], pref_value, q.get("choices", []))
+            continue
+
+        _ask_question(q, brief, custom_notes, pref_value, pref_count)
+
+    if skipped_count:
+        print(color.yellow(
+            f"  {skipped_count} question(s) auto-filled from memory "
+            f"(use --aggressiveness 3+ to review all).\n"
+        ))
 
     brief["additional_context"] = "\n".join(custom_notes) if custom_notes else ""
     brief["required_toolchains"] = _derive_toolchains(brief)
 
     _toolchain_check(brief["required_toolchains"])
 
+    # Persist this session's answers to memory for future learning
+    mem.update_user_preferences(brief)
+
     return brief
+
+
+def _print_auto_accepted(question: str, value, choices: list) -> None:
+    label = value
+    if isinstance(value, list):
+        label = ", ".join(str(v) for v in value)
+    else:
+        for k, lbl in choices:
+            if k == value:
+                label = lbl.split("—")[0].strip()
+                break
+    print(f"  {color.cyan_bold('▸')} {question}")
+    print(f"    {color.green('✓')} {color.yellow(str(label))}  {color.yellow('(remembered)')}\n")
 
 
 # ---------------------------------------------------------------------------
 # Question rendering
 # ---------------------------------------------------------------------------
 
-def _ask_question(q: dict, brief: dict, custom_notes: list) -> None:
+def _ask_question(q: dict, brief: dict, custom_notes: list,
+                  pref_value=None, pref_count: int = 0) -> None:
     qid = q["id"]
     is_multi = q.get("multi", False)
     is_optional = q.get("optional", False)
     choices = q.get("choices", [])
     free_label = q.get("free_text_label")
     allow_custom = q.get("allow_custom", False)
+    has_pref = pref_value is not None and pref_count >= 2
 
     print(f"  {color.cyan_bold('▸')} {q['text']}")
 
     if choices:
-        for i, (_, label) in enumerate(choices, 1):
-            print(f"      {color.yellow(str(i))}.  {label}")
+        # Show memory hint above choices when a preference is established
+        if has_pref:
+            pref_label = _pref_display_label(pref_value, choices)
+            strength = "remembered" if pref_count >= 3 else "suggested"
+            print(f"    {color.yellow(f'[Memory: {pref_label} — {strength}, press Enter to keep]')}")
+
+        for i, (key, label) in enumerate(choices, 1):
+            # Mark the remembered default with an arrow
+            is_default = has_pref and (
+                (not isinstance(pref_value, list) and key == pref_value) or
+                (isinstance(pref_value, list) and key in pref_value)
+            )
+            marker = color.yellow(" ←") if is_default else "   "
+            print(f"      {color.yellow(str(i))}.{marker} {label}")
+
         hint = "number(s)" if is_multi else "number"
         if free_label:
             hint += " or text"
-        optional_hint = "  (Enter to skip)" if is_optional else ""
+        mem_hint = " or Enter to keep remembered" if has_pref else ""
+        optional_hint = "  (Enter to skip)" if is_optional and not has_pref else ""
         print()
 
-        raw = _safe_input(f"    Your answer [{hint}]{optional_hint}: ").strip()
-        if not raw and is_optional:
-            print()
-            return
+        raw = _safe_input(f"    Your answer [{hint}{mem_hint}]{optional_hint}: ").strip()
+
+        # Empty input → use remembered preference or skip
+        if not raw:
+            if has_pref:
+                brief[qid] = pref_value
+                print()
+                return
+            elif is_optional:
+                print()
+                return
 
         if is_multi:
             values = _parse_multi(raw, choices, allow_custom, custom_notes)
@@ -411,15 +492,31 @@ def _ask_question(q: dict, brief: dict, custom_notes: list) -> None:
             brief[qid] = value
 
     else:
-        # Pure free-text question
+        # Pure free-text question (no memory pre-fill — always project-specific)
         optional_hint = "  (Enter to skip)" if is_optional else ""
         raw = _safe_input(f"    {free_label}{optional_hint}: ").strip()
         if raw:
             brief[qid] = raw
-            if qid not in ("core_purpose", "must_not", "extra_context"):
+            if qid not in _FREE_TEXT_ONLY:
                 custom_notes.append(f"{qid}: {raw}")
 
     print()
+
+
+def _pref_display_label(pref_value, choices: list) -> str:
+    """Format a preference value for display (single or multi)."""
+    if isinstance(pref_value, list):
+        labels = []
+        for v in pref_value:
+            for k, lbl in choices:
+                if k == v:
+                    labels.append(lbl.split("—")[0].strip())
+                    break
+        return ", ".join(labels) if labels else str(pref_value)
+    for k, lbl in choices:
+        if k == pref_value:
+            return lbl.split("—")[0].strip()
+    return str(pref_value)
 
 
 def _parse_single(raw: str, choices: list) -> str:

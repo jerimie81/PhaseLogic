@@ -11,7 +11,7 @@ from jinja2 import Environment, FileSystemLoader
 from smooth_bee.agents.gemini_agent import GeminiAgent
 from smooth_bee.agents.kimi_agent import KimiAgent
 from smooth_bee.config import Config
-from smooth_bee import color, paths
+from smooth_bee import color, memory, paths
 from smooth_bee.state import ProjectState
 from smooth_bee import workspace as ws
 
@@ -199,6 +199,13 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     for sid in completed_sids:
         state.sections_coded.append(sid)
         logger.info(f"  Coded: {sid}")
+
+    if not failed:
+        n = memory.index_generated_files(
+            state.project_name, str(ws.get_path(state.project_name))
+        )
+        if n:
+            logger.debug(f"  Indexed {n} generated files in memory.db")
 
     if failed:
         raise RuntimeError("One or more sections failed to code.")

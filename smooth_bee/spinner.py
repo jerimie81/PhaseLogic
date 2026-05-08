@@ -2,6 +2,7 @@ import os
 import sys
 import threading
 import time
+from typing import Optional
 
 _FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
 _ENABLED = sys.stderr.isatty() and os.environ.get("NO_COLOR", "") == ""
@@ -10,9 +11,11 @@ _ENABLED = sys.stderr.isatty() and os.environ.get("NO_COLOR", "") == ""
 class Spinner:
     """Animated spinner on stderr during a blocking operation."""
 
-    def __init__(self, label: str, enabled: bool = True):
+    def __init__(self, label: str, enabled: bool = True,
+                 avg_seconds: Optional[float] = None):
         self._label = label
         self._active = enabled and _ENABLED
+        self._avg = avg_seconds
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._start_time: float = 0.0
@@ -31,7 +34,7 @@ class Spinner:
             return
         self._stop.set()
         self._thread.join(timeout=1.0)
-        clear_width = len(self._label) + 24
+        clear_width = len(self._label) + 36
         sys.stderr.write("\r" + " " * clear_width + "\r")
         sys.stderr.flush()
 
@@ -40,7 +43,8 @@ class Spinner:
         while not self._stop.is_set():
             elapsed = time.monotonic() - self._start_time
             frame = _FRAMES[i % len(_FRAMES)]
-            sys.stderr.write(f"\r{frame} {self._label}... {elapsed:.1f}s")
+            avg_hint = f" / ~{self._avg:.0f}s avg" if self._avg else ""
+            sys.stderr.write(f"\r{frame} {self._label}... {elapsed:.1f}s{avg_hint}")
             sys.stderr.flush()
             i += 1
             self._stop.wait(0.1)

@@ -124,9 +124,14 @@ class Orchestrator:
                 return
             elif choice == "e":
                 if artifact_name:
+                    artifact_path = self.workspace_dir / artifact_name
                     editor = os.environ.get("EDITOR", "vi")
-                    path = str(self.workspace_dir / artifact_name)
-                    subprocess.run([editor, path])
+                    before = artifact_path.read_text() if artifact_path.exists() else ""
+                    subprocess.run([editor, str(artifact_path)])
+                    after = artifact_path.read_text() if artifact_path.exists() else ""
+                    memory.log_artifact_edit(
+                        self.project_name, phase_label, artifact_name, before, after
+                    )
                 else:
                     print("  No editable artifact for this phase.")
                 return
@@ -199,3 +204,12 @@ class Orchestrator:
             f"BUILD COMPLETE: {self.project_name} | {file_count} files | "
             f"{summary['sections_passed']}/{summary['sections_total']} tests passed"
         )
+
+        memory.record_project_completion(self.project_name, {
+            "file_count": file_count,
+            "line_count": line_count,
+            "sections_passed": summary["sections_passed"],
+            "sections_total": summary["sections_total"],
+            "security_critical": summary["security_critical"],
+            "duration_s": secs,
+        })

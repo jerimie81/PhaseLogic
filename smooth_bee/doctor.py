@@ -1,7 +1,7 @@
 import subprocess
 import sys
 
-from smooth_bee import config as cfg_mod, paths, color
+from smooth_bee import config as cfg_mod, memory, paths, color
 
 
 def run() -> bool:
@@ -92,8 +92,24 @@ def run() -> bool:
 
     print()
     if all_ok:
-        print(color.green("All checks passed. smooth-bee is ready.\n"))
+        print(color.green("All checks passed. smooth-bee is ready."))
     else:
-        print(color.red("Some checks failed. Fix the issues above before running smooth-bee.\n"))
+        print(color.red("Some checks failed. Fix the issues above before running smooth-bee."))
+
+    # Agent performance stats from memory.db
+    stats = memory.load_agent_stats()
+    if stats:
+        print(f"\n{'─'*42}")
+        print("  Agent performance (lifetime):")
+        print(f"  {'AGENT':<12}  {'CALLS':>5}  {'AVG':>8}  {'FAILS':>5}")
+        print(f"  {'─'*12}  {'─'*5}  {'─'*8}  {'─'*5}")
+        for agent_name, s in sorted(stats.items()):
+            calls = s.get("calls", 0)
+            avg_s = s.get("avg_s", 0.0)
+            fails = s.get("failures", 0)
+            avg_str = f"{avg_s:.1f}s" if calls >= 3 else "—"
+            fail_str = color.red(str(fails)) if fails > 0 else color.green("0")
+            print(f"  {agent_name:<12}  {calls:>5}  {avg_str:>8}  {fail_str}")
+        print()
 
     return all_ok
