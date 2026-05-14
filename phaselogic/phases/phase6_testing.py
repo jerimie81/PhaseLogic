@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from phaselogic.agents.codex_agent import CodexAgent
+from phaselogic.agents import get_agent
 from phaselogic.config import Config
 from phaselogic import paths
 from phaselogic.state import ProjectState
@@ -19,9 +19,12 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> list[dict]:
     generated_dir = ws.get_generated_dir(state.project_name)
     phase6_dir = ws.get_phase6_dir(state.project_name)
 
-    agent = CodexAgent(cfg, working_dir=generated_dir)
+    agent = get_agent(cfg.testing_agent, cfg)
+    if hasattr(agent, "working_dir"):
+        agent.working_dir = generated_dir
+    
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
-    tmpl = env.get_template("phase6_codex_test.j2")
+    tmpl = env.get_template("phase6_test.j2")
 
     results = []
     already_tested = set(state.sections_tested)

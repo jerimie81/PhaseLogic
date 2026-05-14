@@ -9,12 +9,12 @@ from pathlib import Path
 from phaselogic import color, config, state as st, workspace as ws, memory
 
 _PHASE_LABELS = [
-    ("SPEC",         "SPEC — specification (Claude)"),
-    ("FEASIBILITY",  "FEASIBILITY — feasibility check (Gemini)"),
-    ("RESEARCH",     "RESEARCH — research & planning (Gemini)"),
-    ("ARCHITECTURE", "ARCHITECTURE — design (Claude)"),
-    ("CODING",       "CODING — code generation (Gemini + Kimi)"),
-    ("TESTING",      "TESTING — test generation (Codex)"),
+    ("SPEC",         "SPEC — specification"),
+    ("FEASIBILITY",  "FEASIBILITY — feasibility check"),
+    ("RESEARCH",     "RESEARCH — research & planning"),
+    ("ARCHITECTURE", "ARCHITECTURE — design"),
+    ("CODING",       "CODING — code generation"),
+    ("TESTING",      "TESTING — test generation"),
 ]
 
 
@@ -78,8 +78,8 @@ def cmd_new(args) -> None:
 
     if args.dry_run:
         print("\n[DRY RUN] Would execute pipeline phases:")
-        for i, phase in enumerate(["SPEC (Claude)", "FEASIBILITY (Kimi)", "RESEARCH (Gemini)",
-                                    "ARCHITECTURE (Claude)", "CODING (Gemini+Kimi)", "TESTING (Codex)"], 1):
+        for i, phase in enumerate(["SPEC", "FEASIBILITY", "RESEARCH",
+                                    "ARCHITECTURE", "CODING", "TESTING"], 1):
             print(f"  Phase {i}: {phase}")
         print(f"\nWorkspace would be: {project_dir}")
         if brief.get("required_toolchains"):

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-from phaselogic.agents.claude_agent import ClaudeAgent
+from phaselogic.agents import get_agent
 from phaselogic.config import Config
 from phaselogic import paths
 from phaselogic.state import ProjectState
@@ -20,10 +20,10 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     research = ws.read_artifact(state.project_name, "phase3_research.json")
 
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
-    tmpl = env.get_template("phase4_claude_architecture.j2")
+    tmpl = env.get_template("phase4_architecture.j2")
     prompt = tmpl.render(spec=spec, feasibility=feasibility, research=research)
 
-    agent = ClaudeAgent(cfg)
+    agent = get_agent(cfg.architecture_agent, cfg)
     agent.phase_label = "phase 4"
     raw = agent.call_with_retry(prompt, _SYS, retries=cfg.max_retries, backoff_base=cfg.retry_backoff_base)
 

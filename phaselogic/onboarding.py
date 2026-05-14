@@ -18,11 +18,9 @@ _PITCH = """
   PhaseLogic turns your vision into real, working software — automatically.
 
   You describe what you want in plain English.
-  PhaseLogic coordinates a team of specialized AI agents that do the rest:
-
-    {claude}  writes the specification and designs the architecture
-    {gemini}  checks feasibility, researches tools, and generates the code
-    {codex}   writes tests, finds bugs, and audits for security
+  PhaseLogic coordinates a team of specialized AI agents that do the rest.
+  By default, it uses a mix of Claude, Gemini, and Codex, but you can configure
+  it to use your favorite agents, including local ones like Ollama.
 
   The result is a complete, professional-grade project — structured,
   documented, and ready to publish. No coding experience required.
@@ -189,6 +187,18 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
         f'max_retries = {cfg.max_retries}\n'
         f'retry_backoff_base = {cfg.retry_backoff_base}\n'
         f'\n'
+        f'[phases]\n'
+        f'spec = "{cfg.spec_agent}"\n'
+        f'feasibility = "{cfg.feasibility_agent}"\n'
+        f'research = "{cfg.research_agent}"\n'
+        f'architecture = "{cfg.architecture_agent}"\n'
+        f'coding = "{cfg.coding_agent}"\n'
+        f'testing = "{cfg.testing_agent}"\n'
+        f'\n'
+        f'[ollama]\n'
+        f'model = "{cfg.ollama_model}"\n'
+        f'base_url = "{cfg.ollama_base_url}"\n'
+        f'\n'
         f'[intake]\n'
         f'# Question aggressiveness: 1=minimal  2=light  3=balanced  4=thorough  5=exhaustive\n'
         f'aggressiveness = {cfg.intake_aggressiveness}\n'
@@ -210,11 +220,7 @@ def _ready_banner() -> None:
     sep = color.cyan_bold("━" * 54)
     print(sep)
     print(color.cyan_bold("  PhaseLogic is ready. Here's how it works:\n"))
-    print(_PITCH.format(
-        claude=color.cyan_bold("Claude "),
-        gemini=color.cyan_bold("Gemini "),
-        codex=color.cyan_bold("Codex  "),
-    ))
+    print(_PITCH)
     print(sep)
     print()
 

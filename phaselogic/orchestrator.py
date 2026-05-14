@@ -71,27 +71,27 @@ class Orchestrator:
             memory.log_phase(self.project_name, "DONE")
 
     def _run_spec(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 1, "SPEC (Claude)")
+        lg.phase_banner(self.logger, 1, f"SPEC ({self.cfg.spec_agent})")
         phase1_spec.run(state, self.cfg, self.logger)
 
     def _run_feasibility(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 2, "FEASIBILITY (Gemini)")
+        lg.phase_banner(self.logger, 2, f"FEASIBILITY ({self.cfg.feasibility_agent})")
         phase2_feasibility.run(state, self.cfg, self.logger)
 
     def _run_research(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 3, "RESEARCH (Gemini)")
+        lg.phase_banner(self.logger, 3, f"RESEARCH ({self.cfg.research_agent})")
         phase3_research.run(state, self.cfg, self.logger)
 
     def _run_architecture(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 4, "ARCHITECTURE (Claude)")
+        lg.phase_banner(self.logger, 4, f"ARCHITECTURE ({self.cfg.architecture_agent})")
         phase4_architecture.run(state, self.cfg, self.logger)
 
     def _run_coding(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 5, "CODING (Gemini + Kimi parallel)")
+        lg.phase_banner(self.logger, 5, f"CODING ({self.cfg.coding_agent})")
         phase5_coding.run(state, self.cfg, self.logger)
 
     def _run_testing(self, state: ProjectState) -> None:
-        lg.phase_banner(self.logger, 6, "TESTING (Codex)")
+        lg.phase_banner(self.logger, 6, f"TESTING ({self.cfg.testing_agent})")
         phase6_testing.run(state, self.cfg, self.logger)
 
     def _interactive_review(self, state: ProjectState) -> None:

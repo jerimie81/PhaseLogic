@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 
 from jinja2 import Environment, FileSystemLoader
 
-from phaselogic.agents.gemini_agent import GeminiAgent
+from phaselogic.agents import get_agent
 from phaselogic.config import Config
 from phaselogic import color, memory, paths
 from phaselogic.state import ProjectState
@@ -112,7 +112,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     lock = threading.Lock()
     table = _TableUpdater(statuses, lock)
 
-    gemini_agent = GeminiAgent(cfg)
+    gemini_agent = get_agent(cfg.coding_agent, cfg)
     # Disable per-call spinners — the live table provides status instead
     gemini_agent.phase_label = "phase 5"
     gemini_agent.spinner_enabled = False
@@ -169,7 +169,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     try:
         with ThreadPoolExecutor(max_workers=3) as pool:
             futures = {
-                pool.submit(_run_section, section, gemini_agent, "phase5_gemini_code.j2"): section["section_id"]
+                pool.submit(_run_section, section, gemini_agent, "phase5_code.j2"): section["section_id"]
                 for section in queue
             }
             for fut in as_completed(futures):

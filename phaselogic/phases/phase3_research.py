@@ -3,7 +3,7 @@ import logging
 
 from jinja2 import Environment, FileSystemLoader
 
-from phaselogic.agents.gemini_agent import GeminiAgent
+from phaselogic.agents import get_agent
 from phaselogic.config import Config
 from phaselogic import paths
 from phaselogic.state import ProjectState
@@ -18,10 +18,10 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> dict:
     feasibility = ws.read_artifact(state.project_name, "phase2_feasibility.json")
 
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
-    tmpl = env.get_template("phase3_gemini_research.j2")
+    tmpl = env.get_template("phase3_research.j2")
     prompt = tmpl.render(spec=spec, feasibility=feasibility)
 
-    agent = GeminiAgent(cfg)
+    agent = get_agent(cfg.research_agent, cfg)
     agent.phase_label = "phase 3"
     raw = agent.call_with_retry(prompt, _SYS, retries=cfg.max_retries, backoff_base=cfg.retry_backoff_base)
 
