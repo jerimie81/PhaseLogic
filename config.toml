@@ -9,6 +9,19 @@ model = "gemini-2.0-flash"
 api_key = ""         # fallback: OPENAI_API_KEY env var or ~/.codex/API-key
 model = "gpt-4o"
 
+[ollama]
+base_url = "http://localhost:11434"
+model = "llama3"
+
+[phases]
+# Assign agents to specific phases: claude, gemini, codex, or ollama
+spec = "claude"
+feasibility = "gemini"
+research = "gemini"
+architecture = "claude"
+coding = "gemini"
+testing = "codex"
+
 [orchestration]
 timeout_seconds = 120
 max_retries = 3

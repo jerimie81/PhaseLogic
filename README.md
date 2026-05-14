@@ -10,14 +10,16 @@ PhaseLogic coordinates four specialized AI agents through a six-phase pipeline �
 
 You describe what you want to build. PhaseLogic runs it through six automated phases:
 
-| Phase | Agent | What happens |
-|-------|-------|--------------|
+| Phase | Default Agent | What happens |
+|-------|---------------|--------------|
 | 1 — Spec | Claude (Sonnet) | Turns your description into a structured technical specification |
 | 2 — Feasibility | Gemini (Flash) | Assesses scope, flags risks, confirms the plan is buildable |
 | 3 — Research | Gemini (Flash) | Identifies the best frameworks, libraries, and toolchains |
 | 4 — Architecture | Claude (Sonnet) | Designs the file structure and assigns sections to agents |
 | 5 — Coding | Gemini (Flash) | Generates all source files in parallel |
 | 6 — Testing | Codex (GPT-4o) | Writes tests, fixes bugs, and audits for security |
+
+*Note: All agents are configurable. You can swap any phase to use Claude, Gemini, Codex, or local models via Ollama.*
 
 Each phase produces a reviewable artifact. Run with `--interactive` to inspect and edit outputs between phases.
 
@@ -29,6 +31,7 @@ Each phase produces a reviewable artifact. Run with `--interactive` to inspect a
 - [Claude Code CLI](https://claude.ai/code) (free, browser login)
 - Gemini API key — [get one free](https://aistudio.google.com/app/apikey)
 - OpenAI API key — [platform.openai.com](https://platform.openai.com/api-keys)
+- (Optional) [Ollama](https://ollama.com/) for local LLM support
 
 ---
 
@@ -129,6 +132,19 @@ model = "gemini-2.0-flash"
 [codex]
 api_key = ""          # or OPENAI_API_KEY env var
 model = "gpt-4o"
+
+[ollama]
+base_url = "http://localhost:11434"
+model = "llama3"
+
+[phases]
+# Assign agents to specific phases (claude, gemini, codex, or ollama)
+spec = "claude"
+feasibility = "gemini"
+research = "gemini"
+architecture = "claude"
+coding = "gemini"
+testing = "codex"
 
 [orchestration]
 timeout_seconds = 120
