@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import json
 import re
 import shutil
 import subprocess
@@ -48,6 +49,24 @@ def _slugify(text: str) -> str:
     return text[:40].strip("-")
 
 
+def _load_intake_file(path: str, intake_mod) -> dict:
+    intake_path = Path(path).expanduser()
+    try:
+        brief = json.loads(intake_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"{color.red_bold('Error:')} Could not load intake file {intake_path}: {e}")
+        sys.exit(1)
+
+    if not isinstance(brief, dict):
+        print(f"{color.red_bold('Error:')} Intake file must contain a JSON object: {intake_path}")
+        sys.exit(1)
+
+    if not brief.get("required_toolchains"):
+        brief["required_toolchains"] = intake_mod._derive_toolchains(brief)
+
+    return brief
+
+
 def cmd_new(args) -> None:
     from phaselogic import onboarding, intake as intake_mod
     if not args.dry_run:
@@ -56,6 +75,9 @@ def cmd_new(args) -> None:
 
     # Collect description — from arg, or prompt if at a TTY
     description = args.description
+    brief = _load_intake_file(args.intake_file, intake_mod) if args.intake_file else None
+    if not description and brief:
+        description = brief.get("raw_description") or brief.get("description")
     if not description:
         if not sys.stdin.isatty():
             print("Error: description is required when stdin is not a TTY.")
@@ -72,8 +94,11 @@ def cmd_new(args) -> None:
         sys.exit(1)
 
     # Run intake interview (respects --aggressiveness flag or config default)
-    agg = args.aggressiveness if args.aggressiveness is not None else cfg.intake_aggressiveness
-    brief = intake_mod.run(description, aggressiveness=agg)
+    if brief is None:
+        agg = args.aggressiveness if args.aggressiveness is not None else cfg.intake_aggressiveness
+        brief = intake_mod.run(description, aggressiveness=agg)
+    else:
+        brief.setdefault("raw_description", description)
 
     if not intake_mod.confirm_assumptions(brief, interactive=args.interactive):
         sys.exit(0)
@@ -502,6 +527,8 @@ def main() -> None:
     p_new.add_argument("--dry-run", action="store_true", help="Show pipeline steps without calling agents")
     p_new.add_argument("--interactive", action="store_true",
                        help="Pause after each phase to review output before continuing")
+    p_new.add_argument("--intake-file",
+                       help="Use a JSON intake brief instead of running the discovery interview")
     p_new.add_argument("--aggressiveness", type=int, choices=range(1, 6), metavar="1-5",
                        default=None,
                        help="Interview depth: 1=minimal  3=balanced (default)  5=exhaustive")

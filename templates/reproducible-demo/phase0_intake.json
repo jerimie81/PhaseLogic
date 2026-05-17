@@ -1,0 +1,27 @@
+{
+  "raw_description": "Build a REST API for tracking personal fitness goals. Users should be able to record workouts, body metrics, and weekly goals, then retrieve progress summaries. Use Python, FastAPI, SQLite, and Pytest. Keep authentication out of scope for the first version, but design the structure so accounts can be added later.",
+  "app_category": "service",
+  "target_platforms": [
+    "server"
+  ],
+  "core_purpose": "Track workouts, metrics, weekly goals, and progress summaries through a clean local REST API.",
+  "target_audience": "personal",
+  "ui_type": "none",
+  "data_storage": "local_db",
+  "language": "python",
+  "connectivity": "is_server",
+  "integrations": [
+    "none"
+  ],
+  "must_have": "Reliable progress summaries with tests for calculation logic.",
+  "must_not": "Do not include authentication or cloud deployment in the first version.",
+  "sensitive_data": "personal",
+  "scale": "solo",
+  "monetization": "free",
+  "error_handling": "friendly",
+  "additional_context": "",
+  "required_toolchains": [
+    "docker",
+    "python3"
+  ]
+}

@@ -1,0 +1,1 @@
+Build a REST API for tracking personal fitness goals. Users should be able to record workouts, body metrics, and weekly goals, then retrieve progress summaries. Use Python, FastAPI, SQLite, and Pytest. Keep authentication out of scope for the first version, but design the structure so accounts can be added later.
