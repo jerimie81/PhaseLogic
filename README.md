@@ -129,6 +129,11 @@ model = "claude-sonnet-4-6"
 api_key = ""          # or GEMINI_API_KEY env var
 model = "gemini-2.0-flash"
 
+[kimi]
+api_key = ""          # or KIMI_API_KEY env var
+model = "moonshot-v1-32k"
+base_url = "https://api.moonshot.ai/v1"
+
 [codex]
 api_key = ""          # or OPENAI_API_KEY env var
 model = "gpt-4o"
@@ -138,7 +143,7 @@ base_url = "http://localhost:11434"
 model = "llama3"
 
 [phases]
-# Assign agents to specific phases (claude, gemini, codex, or ollama)
+# Assign agents to specific phases (claude, gemini, kimi, codex, or ollama)
 spec = "claude"
 feasibility = "gemini"
 research = "gemini"
@@ -151,10 +156,71 @@ timeout_seconds = 120
 max_retries = 3
 retry_backoff_base = 2.0
 
+[sandbox]
+enabled = true
+required = true
+image = "python:3.11-slim"
+allow_network = false
+memory = "2g"
+cpus = "2"
+timeout_seconds = 300
+
 [intake]
 # 1=minimal  2=light  3=balanced (default)  4=thorough  5=exhaustive
 aggressiveness = 3
 ```
+
+### Agent profiles
+
+Reusable agent profiles live in `~/.config/phaselogic/agents/*.toml`.
+
+```bash
+phaselogic agents create-template backend-builder
+phaselogic agents list
+phaselogic agents validate backend-builder
+phaselogic agents show backend-builder
+```
+
+Profiles define provider/model, role, personality, phase fit, abilities, knowledge
+sources, workspace permissions, cost/speed preferences, and safety constraints.
+
+### Integrations
+
+Lifecycle integrations are managed separately from LLM agents:
+
+```bash
+phaselogic integrations list
+phaselogic integrations status git
+phaselogic integrations connect git
+phaselogic integrations status github
+```
+
+The initial connector foundation includes local Git and GitHub capability
+metadata. GitHub publishing uses the local `git` and `gh` CLIs.
+
+### Publishing
+
+Publish generated output to GitHub through a preflight gate:
+
+```bash
+phaselogic publish my-project \
+  --provider github \
+  --repo owner/repo \
+  --branch phaselogic/my-project \
+  --base main
+```
+
+Before pushing, PhaseLogic writes `publish_preflight.json`, scans for
+secret-looking values, shows a diff/file preview, summarizes Phase 6 results,
+and asks for confirmation. In non-interactive environments use `--yes`.
+Use `--dry-run` to run the gate without touching GitHub.
+
+### Sandboxing
+
+PhaseLogic creates `.phaselogic/run_in_sandbox.sh` inside generated projects
+during Phase 6. Testing agents must run dependency installation, build, test,
+lint, and audit commands through this wrapper. The default sandbox has no
+network, bounded CPU/memory, and a single generated-project workspace mount.
 
 ---
 

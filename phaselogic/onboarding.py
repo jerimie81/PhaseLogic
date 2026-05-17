@@ -45,14 +45,22 @@ def run_if_needed() -> None:
 
 def _run(cfg: cfg_mod.Config) -> None:
     _banner()
+    used_agents = {
+        cfg.spec_agent, cfg.feasibility_agent, cfg.research_agent,
+        cfg.architecture_agent, cfg.coding_agent, cfg.testing_agent,
+    }
+    total_steps = 3 + (1 if "kimi" in used_agents else 0)
+    step = 1
+
     print(color.yellow("  One or more AI integrations need to be set up before you can build.\n"))
-    print(f"  {color.cyan_bold('Step 1 of 3 — Claude (specification + architecture)')}")
+    print(f"  {color.cyan_bold(f'Step {step} of {total_steps} — Claude (specification + architecture)')}")
     print("  Claude Code is a free CLI tool from Anthropic.")
     print("  It uses browser-based login — no API key needed.\n")
 
     _setup_claude()
+    step += 1
 
-    print(f"\n  {color.cyan_bold('Step 2 of 3 — Google Gemini (feasibility + research + code generation)')}")
+    print(f"\n  {color.cyan_bold(f'Step {step} of {total_steps} — Google Gemini (feasibility + research + code generation)')}")
     gemini_key = _prompt_key(
         display_name="Gemini",
         env_var="GEMINI_API_KEY",
@@ -60,8 +68,21 @@ def _run(cfg: cfg_mod.Config) -> None:
         current=cfg.gemini_api_key,
         hint="Free tier available — no credit card required.",
     )
+    step += 1
 
-    print(f"\n  {color.cyan_bold('Step 3 of 3 — OpenAI (testing + security review)')}")
+    kimi_key = ""
+    if "kimi" in used_agents:
+        print(f"\n  {color.cyan_bold(f'Step {step} of {total_steps} — Kimi (business logic + section coding)')}")
+        kimi_key = _prompt_key(
+            display_name="Kimi",
+            env_var="KIMI_API_KEY",
+            get_key_url="https://platform.moonshot.ai/console/api-keys",
+            current=cfg.kimi_api_key,
+            hint="Used when sections or phases are assigned to the Kimi adapter.",
+        )
+        step += 1
+
+    print(f"\n  {color.cyan_bold(f'Step {step} of {total_steps} — OpenAI (testing + security review)')}")
     openai_key = _prompt_key(
         display_name="OpenAI",
         env_var="OPENAI_API_KEY",
@@ -74,6 +95,8 @@ def _run(cfg: cfg_mod.Config) -> None:
     new_keys = {}
     if gemini_key:
         new_keys["gemini_api_key"] = gemini_key
+    if kimi_key:
+        new_keys["kimi_api_key"] = kimi_key
     if openai_key:
         new_keys["openai_api_key"] = openai_key
 
@@ -168,6 +191,7 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
     user_cfg_path.parent.mkdir(parents=True, exist_ok=True)
 
     gemini_key = updates.get("gemini_api_key", cfg.gemini_api_key)
+    kimi_key = updates.get("kimi_api_key", cfg.kimi_api_key)
     openai_key = updates.get("openai_api_key", cfg.openai_api_key)
 
     content = (
@@ -178,6 +202,11 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
         f'api_key = "{gemini_key}"\n'
         f'model = "{cfg.gemini_model}"\n'
         f'\n'
+        f'[kimi]\n'
+        f'api_key = "{kimi_key}"\n'
+        f'model = "{cfg.kimi_model}"\n'
+        f'base_url = "{cfg.kimi_base_url}"\n'
+        f'\n'
         f'[codex]\n'
         f'api_key = "{openai_key}"\n'
         f'model = "{cfg.codex_model}"\n'
@@ -186,6 +215,15 @@ def _write_user_config(cfg: cfg_mod.Config, updates: dict) -> None:
         f'timeout_seconds = {cfg.timeout_seconds}\n'
         f'max_retries = {cfg.max_retries}\n'
         f'retry_backoff_base = {cfg.retry_backoff_base}\n'
+        f'\n'
+        f'[sandbox]\n'
+        f'enabled = {str(cfg.sandbox_enabled).lower()}\n'
+        f'required = {str(cfg.sandbox_required).lower()}\n'
+        f'image = "{cfg.sandbox_image}"\n'
+        f'allow_network = {str(cfg.sandbox_allow_network).lower()}\n'
+        f'memory = "{cfg.sandbox_memory}"\n'
+        f'cpus = "{cfg.sandbox_cpus}"\n'
+        f'timeout_seconds = {cfg.sandbox_timeout_seconds}\n'
         f'\n'
         f'[phases]\n'
         f'spec = "{cfg.spec_agent}"\n'

@@ -2,11 +2,16 @@ import subprocess
 import sys
 
 from phaselogic import config as cfg_mod, memory, paths, color
+from phaselogic.sandbox import DockerSandbox, SandboxPolicy
 
 
 def run() -> bool:
     cfg = cfg_mod.load()
     checks: list[tuple[str, bool, str, str]] = []  # label, ok, detail, hint
+    used_agents = {
+        cfg.spec_agent, cfg.feasibility_agent, cfg.research_agent,
+        cfg.architecture_agent, cfg.coding_agent, cfg.testing_agent,
+    }
 
     # Python version
     vi = sys.version_info
@@ -46,6 +51,15 @@ def run() -> bool:
     checks.append(("Gemini API key", ok, "present" if ok else "missing",
                    "set GEMINI_API_KEY or [gemini] api_key in config.toml" if not ok else ""))
 
+    # Kimi API key
+    if "kimi" in used_agents:
+        ok = bool(cfg.kimi_api_key)
+        checks.append(("Kimi API key", ok, "present" if ok else "missing",
+                       "set KIMI_API_KEY or [kimi] api_key in config.toml" if not ok else ""))
+    else:
+        checks.append(("Kimi API key", True,
+                       "present" if cfg.kimi_api_key else "missing (optional)", ""))
+
     # Codex/OpenAI key
     ok = bool(cfg.openai_api_key)
     checks.append(("Codex/OpenAI key", ok, "present" if ok else "missing",
@@ -64,6 +78,21 @@ def run() -> bool:
         ok = False
         detail = str(e)
     checks.append(("Workspace writable", ok, detail, "check directory permissions" if not ok else ""))
+
+    if cfg.sandbox_enabled:
+        sandbox = DockerSandbox(
+            image=cfg.sandbox_image,
+            policy=SandboxPolicy(
+                allow_network=cfg.sandbox_allow_network,
+                memory=cfg.sandbox_memory,
+                cpus=cfg.sandbox_cpus,
+                timeout_seconds=cfg.sandbox_timeout_seconds,
+            ),
+        )
+        ok = sandbox.available()
+        detail = cfg.sandbox_image if ok else "docker unavailable"
+        hint = "install/start Docker or set [sandbox] required=false" if not ok else ""
+        checks.append(("Docker sandbox", ok or not cfg.sandbox_required, detail, hint))
 
     w_label = max(len(c[0]) for c in checks)
     w_detail = max(len(c[2]) for c in checks)

@@ -15,6 +15,7 @@ class Phase(str, Enum):
     ARCHITECTURE = "ARCHITECTURE"
     CODING = "CODING"
     TESTING = "TESTING"
+    REPAIR = "REPAIR"
     DONE = "DONE"
     FAILED = "FAILED"
 

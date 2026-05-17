@@ -565,6 +565,52 @@ def _safe_input(prompt: str) -> str:
         return ""
 
 
+def confirm_assumptions(brief: dict, interactive: bool) -> bool:
+    """Show the user what we've 'remembered' or assumed and get confirmation."""
+    if not interactive:
+        return True
+
+    from phaselogic import color
+    print(f"\n{color.cyan_bold('━' * 42)}")
+    print(f"{color.cyan_bold('  PHASELOGIC: CONFIRM ASSUMPTIONS')}")
+    print(f"{color.cyan_bold('━' * 42)}")
+    print("  Based on your project description and past preferences,")
+    print("  we've made the following assumptions:\n")
+
+    # Map internal IDs to more readable descriptions
+    _LABELS = {
+        "app_category": "App Type",
+        "target_platforms": "Platforms",
+        "core_purpose": "Core Purpose",
+        "target_audience": "Audience",
+        "ui_type": "Interface Style",
+        "data_storage": "Data Management",
+        "language": "Programming Language",
+        "connectivity": "Network/Connectivity",
+        "integrations": "Integrations",
+    }
+
+    for qid, val in brief.items():
+        if qid == "raw_description" or qid == "required_toolchains": 
+            continue
+        label = _LABELS.get(qid, qid.replace('_', ' ').title())
+        if isinstance(val, list):
+            display = ", ".join(val)
+        else:
+            display = str(val)
+        print(f"    - {label:<20}: {color.yellow(display)}")
+
+    print(f"\n{color.cyan_bold('━' * 42)}")
+    while True:
+        choice = _safe_input("  Does this look correct? [Y/n]: ").strip().lower()
+        if choice in ("", "y", "yes"):
+            return True
+        if choice in ("n", "no"):
+            print("\n  Understood. Please run again with higher aggressiveness")
+            print("  or edit your response during the interactive phase review.")
+            return False
+
+
 # ---------------------------------------------------------------------------
 # Toolchain check & install
 # ---------------------------------------------------------------------------

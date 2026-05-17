@@ -1,5 +1,7 @@
+import json
 import time
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Optional
 
 
@@ -53,3 +55,36 @@ class AgentAdapter(ABC):
                 time.sleep(backoff_base ** attempt)
 
         raise last_err
+
+    def call_for_report(
+        self,
+        prompt: str,
+        report_path: Path,
+        system_prompt: Optional[str] = None,
+    ) -> dict:
+        """
+        Request a structured report from an agent.
+
+        CLI agents such as Codex can override this to write files directly.
+        API agents usually return the report text, so the base implementation
+        parses the response as JSON and writes it to report_path.
+        """
+        raw = self.call(prompt, system_prompt)
+        if report_path.exists():
+            return json.loads(report_path.read_text())
+        try:
+            report = json.loads(_strip_json_fence(raw))
+        except json.JSONDecodeError as e:
+            raise AgentError(f"{self.name} did not return valid JSON report: {e}", raw)
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        return report
+
+
+def _strip_json_fence(raw: str) -> str:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```", 2)[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return raw.strip()

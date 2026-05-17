@@ -5,8 +5,10 @@ from pathlib import Path
 from jinja2 import Environment, FileSystemLoader
 
 from phaselogic.agents import get_agent
+from phaselogic.agents.base import AgentAdapter
 from phaselogic.config import Config
 from phaselogic import paths
+from phaselogic.sandbox import DockerSandbox, SandboxPolicy
 from phaselogic.state import ProjectState
 from phaselogic import workspace as ws
 
@@ -22,6 +24,8 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> list[dict]:
     agent = get_agent(cfg.testing_agent, cfg)
     if hasattr(agent, "working_dir"):
         agent.working_dir = generated_dir
+
+    sandbox = _prepare_sandbox(generated_dir, cfg, logger)
     
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
     tmpl = env.get_template("phase6_test.j2")
@@ -36,7 +40,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> list[dict]:
             continue
 
         report_path = phase6_dir / f"{sid}_codex.json"
-        prompt = tmpl.render(section=section, report_path=str(report_path))
+        prompt = tmpl.render(section=section, report_path=str(report_path), sandbox=sandbox)
 
         logger.info(f"  Testing section: {sid} ({section['title']})")
         try:
@@ -62,7 +66,41 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> list[dict]:
     return results
 
 
-def _run_security_sweep(project_name: str, agent: CodexAgent, phase6_dir: Path, logger: logging.Logger) -> None:
+def _prepare_sandbox(generated_dir: Path, cfg: Config, logger: logging.Logger) -> dict:
+    if not cfg.sandbox_enabled:
+        logger.warning("  Phase 6 sandbox disabled by config.")
+        return {"enabled": False, "required": False, "reason": "disabled by config"}
+
+    policy = SandboxPolicy(
+        allow_network=cfg.sandbox_allow_network,
+        memory=cfg.sandbox_memory,
+        cpus=cfg.sandbox_cpus,
+        timeout_seconds=cfg.sandbox_timeout_seconds,
+    )
+    sandbox = DockerSandbox(image=cfg.sandbox_image, policy=policy)
+    if not sandbox.available():
+        message = "Docker sandbox is enabled but docker is not available."
+        if cfg.sandbox_required:
+            raise RuntimeError(message)
+        logger.warning(f"  {message} Falling back to host execution.")
+        return {"enabled": False, "required": False, "reason": message}
+
+    runner = sandbox.write_runner(generated_dir)
+    rel_runner = runner.relative_to(generated_dir)
+    logger.info(f"  Phase 6 sandbox runner ready: {rel_runner}")
+    return {
+        "enabled": True,
+        "required": cfg.sandbox_required,
+        "runner": f"./{rel_runner}",
+        "image": cfg.sandbox_image,
+        "allow_network": cfg.sandbox_allow_network,
+        "memory": cfg.sandbox_memory,
+        "cpus": cfg.sandbox_cpus,
+        "timeout_seconds": cfg.sandbox_timeout_seconds,
+    }
+
+
+def _run_security_sweep(project_name: str, agent: AgentAdapter, phase6_dir: Path, logger: logging.Logger) -> None:
     report_path = phase6_dir / "security_final.json"
     if report_path.exists():
         logger.info("  Security sweep already done.")

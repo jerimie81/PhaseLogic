@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from jinja2 import Environment, FileSystemLoader
 
 from phaselogic.agents import get_agent
+from phaselogic.agent_profiles import load_profiles, find_best_agent
 from phaselogic.config import Config
 from phaselogic import color, memory, paths
 from phaselogic.state import ProjectState
@@ -94,6 +95,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     spec = ws.read_artifact(state.project_name, "phase1_spec.json")
     research = ws.read_artifact(state.project_name, "phase3_research.json")
 
+    profiles = load_profiles()
     sections = arch.get("sections", [])
     ordered = _topological_sort(sections)
 
@@ -107,15 +109,14 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     # Build shared status table
     statuses: dict[str, _SectionStatus] = {}
     for s in queue:
-        statuses[s["section_id"]] = _SectionStatus(s["section_id"], "gemini")
+        agent_name = _select_agent_for_section(s, cfg, profiles)
+        statuses[s["section_id"]] = _SectionStatus(
+            s["section_id"],
+            agent_name,
+        )
 
     lock = threading.Lock()
     table = _TableUpdater(statuses, lock)
-
-    gemini_agent = get_agent(cfg.coding_agent, cfg)
-    # Disable per-call spinners — the live table provides status instead
-    gemini_agent.phase_label = "phase 5"
-    gemini_agent.spinner_enabled = False
 
     env = Environment(loader=FileSystemLoader(str(_PROMPTS)))
     coded_cache: dict = {}
@@ -131,12 +132,50 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
                 pass
         return cache
 
-    def _run_section(section: dict, agent, template_name: str) -> dict:
+    def _build_agent(section: dict):
+        sid = section["section_id"]
+        preferred = _select_agent_for_section(section, cfg, profiles)
+        candidates: list[str] = []
+        fallback_agents = [
+            str(name).strip().lower()
+            for name in section.get("fallback_agents", [])
+            if str(name).strip()
+        ]
+        for name in [preferred, *fallback_agents, cfg.coding_agent]:
+            if name and name not in candidates:
+                candidates.append(name)
+
+        last_error: Exception | None = None
+        for name in candidates:
+            try:
+                agent = get_agent(name, cfg)
+            except Exception as e:
+                last_error = e
+                if name == preferred and name != cfg.coding_agent:
+                    logger.warning(
+                        f"  Agent '{name}' unavailable for {sid}; "
+                        f"falling back to '{cfg.coding_agent}'. Reason: {e}"
+                    )
+                continue
+
+            # Disable per-call spinners — the live table provides status instead
+            agent.phase_label = "phase 5"
+            agent.spinner_enabled = False
+            with lock:
+                statuses[sid].agent = name
+            return agent, name
+
+        raise RuntimeError(
+            f"No coding agent available for {sid}. Last error: {last_error}"
+        )
+
+    def _run_section(section: dict, template_name: str) -> dict:
         sid = section["section_id"]
         with lock:
             statuses[sid].status = "coding"
             statuses[sid].start_time = time.monotonic()
         try:
+            agent, agent_name = _build_agent(section)
             coded_cache.update(_load_coded())
             deps = {dep_id: coded_cache[dep_id]
                     for dep_id in section.get("dependencies", [])
@@ -149,8 +188,7 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
             result = _parse_json(raw, logger, sid)
             _write_section_files(state.project_name, result, logger)
 
-            agent_tag = "gemini" if agent.name == "gemini" else "kimi"
-            ws.write_artifact(state.project_name, f"phase5_sections/{sid}_{agent_tag}.json", result)
+            ws.write_artifact(state.project_name, f"phase5_sections/{sid}_{agent_name}.json", result)
 
             with lock:
                 statuses[sid].status = "done"
@@ -167,20 +205,37 @@ def run(state: ProjectState, cfg: Config, logger: logging.Logger) -> None:
     failed = False
 
     try:
-        with ThreadPoolExecutor(max_workers=3) as pool:
-            futures = {
-                pool.submit(_run_section, section, gemini_agent, "phase5_code.j2"): section["section_id"]
-                for section in queue
-            }
-            for fut in as_completed(futures):
-                sid = futures[fut]
-                try:
-                    fut.result()
-                    completed_sids.append(sid)
-                except Exception as e:
-                    logger.error(f"  Failed to code {sid}: {e}")
-                    failed = True
-                    raise
+        pending = {s["section_id"]: s for s in queue}
+        completed = set(already_coded)
+
+        while pending:
+            ready = [
+                s for s in pending.values()
+                if set(s.get("dependencies", [])).issubset(completed)
+            ]
+            if not ready:
+                blocked = ", ".join(sorted(pending))
+                raise RuntimeError(
+                    "No code sections are ready to run. "
+                    f"Check for circular or missing dependencies: {blocked}"
+                )
+
+            with ThreadPoolExecutor(max_workers=min(3, len(ready))) as pool:
+                futures = {
+                    pool.submit(_run_section, section, "phase5_code.j2"): section["section_id"]
+                    for section in ready
+                }
+                for fut in as_completed(futures):
+                    sid = futures[fut]
+                    try:
+                        fut.result()
+                        completed_sids.append(sid)
+                        completed.add(sid)
+                        pending.pop(sid, None)
+                    except Exception as e:
+                        logger.error(f"  Failed to code {sid}: {e}")
+                        failed = True
+                        raise
     finally:
         table.stop()
 
@@ -209,17 +264,46 @@ def _write_section_files(project_name: str, result: dict, logger: logging.Logger
             logger.debug(f"    Wrote: {path}")
 
 
+def _select_agent_for_section(section: dict, cfg: Config, profiles: dict) -> str:
+    # 1. Use explicitly assigned profile if it exists in profiles
+    assigned = str(section.get("assigned_to") or "").strip().lower()
+    if assigned in profiles:
+        return assigned
+
+    # 2. Match by capabilities
+    reqs = section.get("required_capabilities") or section.get("capabilities", [])
+    pref_provider = section.get("preferred_provider")
+    best = find_best_agent(reqs, profiles, provider_preference=pref_provider)
+    if best:
+        return best
+
+    # 3. Fallback to assigned name (if it was just a provider name like 'gemini') or config default
+    return assigned or cfg.coding_agent
+
+
+def _preferred_agent_name(section: dict, cfg: Config) -> str:
+    return _select_agent_for_section(section, cfg, {})
+
+
 def _topological_sort(sections: list) -> list:
     id_map = {s["section_id"]: s for s in sections}
     visited = set()
+    visiting = set()
     order = []
 
     def _visit(sid):
         if sid in visited:
             return
-        visited.add(sid)
-        for dep in id_map.get(sid, {}).get("dependencies", []):
+        if sid in visiting:
+            raise RuntimeError(f"Circular section dependency detected at {sid}")
+        if sid not in id_map:
+            raise RuntimeError(f"Section dependency '{sid}' is not defined")
+
+        visiting.add(sid)
+        for dep in id_map[sid].get("dependencies", []):
             _visit(dep)
+        visiting.remove(sid)
+        visited.add(sid)
         order.append(id_map[sid])
 
     for s in sections:

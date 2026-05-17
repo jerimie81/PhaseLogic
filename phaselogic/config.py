@@ -14,6 +14,9 @@ class Config:
     claude_model: str = "claude-sonnet-4-6"
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.0-flash"
+    kimi_api_key: str = ""
+    kimi_model: str = "moonshot-v1-32k"
+    kimi_base_url: str = "https://api.moonshot.ai/v1"
     openai_api_key: str = ""
     codex_model: str = "gpt-4o"
     ollama_model: str = "llama3"
@@ -28,6 +31,13 @@ class Config:
     max_retries: int = 3
     retry_backoff_base: float = 2.0
     intake_aggressiveness: int = 3
+    sandbox_enabled: bool = True
+    sandbox_required: bool = True
+    sandbox_image: str = "python:3.11-slim"
+    sandbox_allow_network: bool = False
+    sandbox_memory: str = "2g"
+    sandbox_cpus: str = "2"
+    sandbox_timeout_seconds: int = 300
 
 
 def load() -> Config:
@@ -49,11 +59,15 @@ def load() -> Config:
 
     orch = raw.get("orchestration", {})
     phases = raw.get("phases", {})
+    sandbox = raw.get("sandbox", {})
 
     return Config(
         claude_model=_get("claude", "model", default="claude-sonnet-4-6"),
         gemini_api_key=_get("gemini", "api_key", "GEMINI_API_KEY"),
         gemini_model=_get("gemini", "model", default="gemini-2.0-flash"),
+        kimi_api_key=_get("kimi", "api_key", "KIMI_API_KEY"),
+        kimi_model=_get("kimi", "model", default="moonshot-v1-32k"),
+        kimi_base_url=_get("kimi", "base_url", default="https://api.moonshot.ai/v1"),
         openai_api_key=openai_key,
         codex_model=_get("codex", "model", default="gpt-4o"),
         ollama_model=_get("ollama", "model", default="llama3"),
@@ -68,6 +82,13 @@ def load() -> Config:
         max_retries=int(orch.get("max_retries", 3)),
         retry_backoff_base=float(orch.get("retry_backoff_base", 2.0)),
         intake_aggressiveness=int(raw.get("intake", {}).get("aggressiveness", 3)),
+        sandbox_enabled=_as_bool(sandbox.get("enabled", True)),
+        sandbox_required=_as_bool(sandbox.get("required", True)),
+        sandbox_image=str(sandbox.get("image", "python:3.11-slim")),
+        sandbox_allow_network=_as_bool(sandbox.get("allow_network", False)),
+        sandbox_memory=str(sandbox.get("memory", "2g")),
+        sandbox_cpus=str(sandbox.get("cpus", "2")),
+        sandbox_timeout_seconds=int(sandbox.get("timeout_seconds", 300)),
     )
 
 
@@ -92,6 +113,10 @@ def validate(cfg: Config) -> list[tuple[str, bool, str]]:
         ok = bool(cfg.gemini_api_key)
         checks.append(("Gemini API key", ok, "" if ok else "set GEMINI_API_KEY or [gemini] api_key in config.toml"))
 
+    if "kimi" in used_agents:
+        ok = bool(cfg.kimi_api_key)
+        checks.append(("Kimi API key", ok, "" if ok else "set KIMI_API_KEY or [kimi] api_key in config.toml"))
+
     if "codex" in used_agents:
         ok = bool(cfg.openai_api_key)
         checks.append(("Codex/OpenAI key", ok, "" if ok else "set OPENAI_API_KEY, [codex] api_key, or ~/.codex/API-key"))
@@ -107,4 +132,26 @@ def validate(cfg: Config) -> list[tuple[str, bool, str]]:
             ok = False
         checks.append(("Ollama Service", ok, "" if ok else f"could not reach {cfg.ollama_base_url}"))
 
+    if cfg.sandbox_enabled and cfg.sandbox_required:
+        from phaselogic.sandbox import DockerSandbox, SandboxPolicy
+        sandbox = DockerSandbox(
+            image=cfg.sandbox_image,
+            policy=SandboxPolicy(
+                allow_network=cfg.sandbox_allow_network,
+                memory=cfg.sandbox_memory,
+                cpus=cfg.sandbox_cpus,
+                timeout_seconds=cfg.sandbox_timeout_seconds,
+            ),
+        )
+        ok = sandbox.available()
+        checks.append(("Docker sandbox", ok, "" if ok else "docker not found or not available"))
+
     return checks
+
+
+def _as_bool(value) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return bool(value)

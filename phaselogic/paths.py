@@ -6,6 +6,7 @@ Resolution order:
   workspace : PHASELOGIC_WORKSPACE env → ~/.local/share/phaselogic/workspace
   config    : PHASELOGIC_CONFIG env    → ~/.config/phaselogic/config.toml
                                        → /etc/phaselogic/config.toml
+  agents    : PHASELOGIC_AGENT_PROFILES env → ~/.config/phaselogic/agents
 """
 
 import os
@@ -31,6 +32,14 @@ def workspace_root() -> Path:
     if env := os.environ.get("PHASELOGIC_WORKSPACE"):
         return Path(env)
     return Path.home() / ".local" / "share" / "phaselogic" / "workspace"
+
+
+# --- agent profiles ---------------------------------------------------
+
+def agent_profiles_dir() -> Path:
+    if env := os.environ.get("PHASELOGIC_AGENT_PROFILES"):
+        return Path(env)
+    return Path.home() / ".config" / "phaselogic" / "agents"
 
 
 # --- config -----------------------------------------------------------

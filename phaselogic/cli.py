@@ -15,6 +15,7 @@ _PHASE_LABELS = [
     ("ARCHITECTURE", "ARCHITECTURE — design"),
     ("CODING",       "CODING — code generation"),
     ("TESTING",      "TESTING — test generation"),
+    ("REPAIR",       "REPAIR — quality gate repair needed"),
 ]
 
 
@@ -49,7 +50,8 @@ def _slugify(text: str) -> str:
 
 def cmd_new(args) -> None:
     from phaselogic import onboarding, intake as intake_mod
-    onboarding.run_if_needed()
+    if not args.dry_run:
+        onboarding.run_if_needed()
     cfg = config.load()
 
     # Collect description — from arg, or prompt if at a TTY
@@ -72,6 +74,9 @@ def cmd_new(args) -> None:
     # Run intake interview (respects --aggressiveness flag or config default)
     agg = args.aggressiveness if args.aggressiveness is not None else cfg.intake_aggressiveness
     brief = intake_mod.run(description, aggressiveness=agg)
+
+    if not intake_mod.confirm_assumptions(brief, interactive=args.interactive):
+        sys.exit(0)
 
     print(f"\nStarting project: {color.cyan_bold(name)}")
     print(f"Description: {description}")
@@ -202,6 +207,107 @@ def cmd_doctor(args) -> None:
         sys.exit(1)
 
 
+def cmd_integrations(args) -> None:
+    from phaselogic.connectors import get_connector, list_connectors
+
+    if args.integration_command == "list":
+        print("Available integrations:")
+        for connector in list_connectors():
+            status = connector.health_check()
+            marker = color.green("✓") if status.connected else color.yellow("!")
+            print(f"  {marker}  {connector.name:<12} {connector.display_name:<20} {status.detail}")
+        return
+
+    connector = get_connector(args.name)
+    if args.integration_command == "status":
+        status = connector.health_check()
+    elif args.integration_command == "connect":
+        status = connector.connect()
+    else:
+        raise ValueError(f"Unknown integrations command: {args.integration_command}")
+
+    marker = color.green("connected") if status.connected else color.red("unavailable")
+    print(f"\nIntegration: {connector.display_name} ({connector.name})")
+    print(f"Status:      {marker}")
+    print(f"Detail:      {status.detail}")
+    if status.capabilities:
+        print("\nCapabilities:")
+        for cap in status.capabilities:
+            perms = ", ".join(p.value for p in cap.permissions) or "none"
+            print(f"  - {cap.name:<12} {cap.description} [{perms}]")
+    print()
+
+
+def cmd_agents(args) -> None:
+    from phaselogic import agent_profiles
+
+    project_dir = Path(args.project).expanduser() if getattr(args, "project", None) else None
+
+    if args.agent_command == "create-template":
+        try:
+            path = agent_profiles.create_template(args.name)
+        except (FileExistsError, OSError) as e:
+            print(f"{color.red_bold('Error:')} {e}")
+            sys.exit(1)
+        print(color.green(f"Created agent profile template: {path}"))
+        return
+
+    profiles = agent_profiles.load_profiles(project_dir)
+
+    if args.agent_command == "list":
+        if not profiles:
+            print("No agent profiles found.")
+            return
+        print("Agent profiles:")
+        for profile in sorted(profiles.values(), key=lambda p: p.name):
+            source = f"  ({profile.source_path})" if profile.source_path else ""
+            print(f"  {profile.name:<20} {profile.provider:<10} {profile.model}{source}")
+        return
+
+    if args.agent_command == "show":
+        profile = profiles.get(args.name)
+        if profile is None:
+            print(f"Agent profile '{args.name}' not found.")
+            sys.exit(1)
+        print(profile.to_toml(), end="")
+        return
+
+    if args.agent_command == "validate":
+        target = Path(args.target).expanduser()
+        if target.exists():
+            profile = agent_profiles.load_profile(target)
+        else:
+            profile = profiles.get(args.target)
+            if profile is None:
+                print(f"Agent profile '{args.target}' not found.")
+                sys.exit(1)
+        errors = profile.validation_errors()
+        if errors:
+            print(color.red_bold(f"Agent profile '{profile.name}' is invalid:"))
+            for err in errors:
+                print(f"  - {err}")
+            sys.exit(1)
+        print(color.green(f"Agent profile '{profile.name}' is valid."))
+        return
+
+    if args.agent_command == "test":
+        profile = profiles.get(args.name)
+        if profile is None:
+            print(f"Agent profile '{args.name}' not found.")
+            sys.exit(1)
+        
+        print(f"Testing connectivity for '{profile.name}' ({profile.provider}/{profile.model})...")
+        ok, msg = profile.test()
+        if ok:
+            print(f"{color.green('✓')} {msg}")
+        else:
+            print(f"{color.red('✗')} {msg}")
+            sys.exit(1)
+        return
+
+    raise ValueError(f"Unknown agents command: {args.agent_command}")
+
+
 def cmd_logs(args) -> None:
     name = args.project_name
     log_dir = ws.get_path(name) / "logs"
@@ -215,6 +321,82 @@ def cmd_logs(args) -> None:
     latest = logs[0]
     print(f"--- {latest.name} ---")
     subprocess.run(["tail", "-n", str(args.lines), str(latest)])
+
+
+def cmd_publish(args) -> None:
+    from phaselogic import publish
+    from phaselogic.connectors.github import GitHubConnector
+
+    name = args.project_name
+    project_dir = ws.get_path(name)
+    generated_dir = ws.get_generated_dir(name)
+    if not project_dir.exists():
+        print(f"{color.red_bold('Error:')} Project '{name}' not found.")
+        sys.exit(1)
+    if not generated_dir.exists():
+        print(f"{color.red_bold('Error:')} Generated output not found: {generated_dir}")
+        sys.exit(1)
+
+    if args.provider != "github":
+        print(f"{color.red_bold('Error:')} Unsupported publish provider: {args.provider}")
+        sys.exit(1)
+    if not args.repo:
+        print(f"{color.red_bold('Error:')} --repo owner/name is required for GitHub publishing.")
+        sys.exit(1)
+
+    branch = args.branch or f"phaselogic/{name}"
+    title = args.title or f"PhaseLogic generated project: {name}"
+    body = args.body or (
+        f"Generated by PhaseLogic from project `{name}`.\n\n"
+        "This PR was created after local preflight checks."
+    )
+
+    preflight = publish.build_preflight(name, args.repo, branch, args.base)
+    print(publish.format_preflight(preflight))
+
+    if preflight.blocks_publish and not args.allow_secret_findings:
+        print()
+        print(color.red_bold("Publish blocked: secret-looking values were found."))
+        print("Review publish_preflight.json or rerun with --allow-secret-findings for false positives.")
+        sys.exit(1)
+
+    if args.dry_run:
+        print(color.yellow("\nDry run complete. No GitHub changes were made."))
+        return
+
+    if not args.yes:
+        if not sys.stdin.isatty():
+            print("Error: --yes required when stdin is not a TTY.")
+            sys.exit(1)
+        answer = input("\nPush branch and open GitHub PR? [y/N]: ").strip().lower()
+        if answer not in ("y", "yes"):
+            print("Aborted.")
+            return
+
+    connector = GitHubConnector()
+    status = connector.health_check()
+    if not status.connected:
+        print(f"{color.red_bold('Error:')} GitHub integration unavailable: {status.detail}")
+        sys.exit(1)
+
+    try:
+        result = connector.publish(
+            generated_dir=generated_dir,
+            repo=args.repo,
+            branch=branch,
+            base=args.base,
+            title=title,
+            body=body,
+            watch_ci=args.watch_ci,
+        )
+    except Exception as e:
+        print(f"{color.red_bold('Error:')} Publish failed: {e}")
+        sys.exit(1)
+
+    print(color.green(f"\nPull request: {result.pr_url}"))
+    if result.ci_output:
+        print("\nCI status:")
+        print(result.ci_output)
 
 
 def cmd_delete(args) -> None:
@@ -240,6 +422,8 @@ def cmd_delete(args) -> None:
                 status = "done"
             elif phase == "FAILED":
                 status = "failed"
+            elif phase == "REPAIR":
+                status = "needs-repair"
             else:
                 status = "running"
         except Exception:
@@ -344,6 +528,50 @@ def main() -> None:
 
     p_doctor = sub.add_parser("doctor", help="Check environment and configuration")
     p_doctor.set_defaults(func=cmd_doctor)
+
+    p_publish = sub.add_parser("publish", help="Publish generated output through a lifecycle connector")
+    p_publish.add_argument("project_name")
+    p_publish.add_argument("--provider", default="github", choices=["github"])
+    p_publish.add_argument("--repo", help="GitHub repository in owner/name form")
+    p_publish.add_argument("--branch", help="Branch to push (default: phaselogic/<project>)")
+    p_publish.add_argument("--base", default="main", help="Base branch for the pull request")
+    p_publish.add_argument("--title", help="Pull request title")
+    p_publish.add_argument("--body", help="Pull request body")
+    p_publish.add_argument("--allow-secret-findings", action="store_true",
+                           help="Allow publish when the preflight secret scan has findings")
+    p_publish.add_argument("--watch-ci", action="store_true", help="Wait for GitHub PR checks")
+    p_publish.add_argument("--dry-run", action="store_true", help="Run preflight only")
+    p_publish.add_argument("--yes", "-y", action="store_true", help="Skip publish confirmation")
+    p_publish.set_defaults(func=cmd_publish)
+
+    p_integrations = sub.add_parser("integrations", help="Manage lifecycle integrations")
+    si = p_integrations.add_subparsers(dest="integration_command", required=True)
+    si.add_parser("list", help="List available integrations").set_defaults(func=cmd_integrations)
+    for cmd_name in ("status", "connect"):
+        p = si.add_parser(cmd_name, help=f"{cmd_name.title()} an integration")
+        p.add_argument("name", help="Integration name, e.g. git")
+        p.set_defaults(func=cmd_integrations)
+
+    p_agents = sub.add_parser("agents", help="Manage saved agent profiles")
+    sa = p_agents.add_subparsers(dest="agent_command", required=True)
+    p_agents_list = sa.add_parser("list", help="List agent profiles")
+    p_agents_list.add_argument("--project", help="Include project-local .phaselogic/agents profiles")
+    p_agents_list.set_defaults(func=cmd_agents)
+    p_agents_show = sa.add_parser("show", help="Show an agent profile")
+    p_agents_show.add_argument("name")
+    p_agents_show.add_argument("--project", help="Include project-local .phaselogic/agents profiles")
+    p_agents_show.set_defaults(func=cmd_agents)
+    p_agents_validate = sa.add_parser("validate", help="Validate an agent profile by name or path")
+    p_agents_validate.add_argument("target")
+    p_agents_validate.add_argument("--project", help="Include project-local .phaselogic/agents profiles")
+    p_agents_validate.set_defaults(func=cmd_agents)
+    p_agents_test = sa.add_parser("test", help="Test connectivity of an agent profile")
+    p_agents_test.add_argument("name")
+    p_agents_test.add_argument("--project", help="Include project-local .phaselogic/agents profiles")
+    p_agents_test.set_defaults(func=cmd_agents)
+    p_agents_template = sa.add_parser("create-template", help="Create an editable agent profile template")
+    p_agents_template.add_argument("name")
+    p_agents_template.set_defaults(func=cmd_agents)
 
     p_delete = sub.add_parser("delete", help="Delete a project and its workspace")
     p_delete.add_argument("project_name")

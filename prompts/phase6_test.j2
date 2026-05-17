@@ -5,6 +5,20 @@ SECTION METADATA:
 
 All source files are in your current working directory (the generated project root).
 
+{% if sandbox.enabled %}
+SANDBOX REQUIREMENT:
+- All dependency installation, build, test, lint, and audit commands MUST run through:
+  {{ sandbox.runner }} "<command>"
+- Do not run generated project code directly on the host.
+- The sandbox image is {{ sandbox.image }}.
+- Network access inside the sandbox is {{ "enabled" if sandbox.allow_network else "disabled" }}.
+- CPU/memory limits: {{ sandbox.cpus }} CPU, {{ sandbox.memory }} memory.
+{% else %}
+SANDBOX STATUS:
+- Sandboxed command execution is unavailable: {{ sandbox.reason }}
+- If you run commands directly, record that host execution was used in the report notes.
+{% endif %}
+
 YOUR TASKS:
 1. Identify the test framework for this project (pytest, jest, cargo test, go test, etc.)
 2. Write comprehensive unit tests for every file in the section. Place tests in the standard test directory for the framework.

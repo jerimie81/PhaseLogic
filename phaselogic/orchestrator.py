@@ -47,9 +47,10 @@ class Orchestrator:
             Phase.RESEARCH: self._run_architecture,
             Phase.ARCHITECTURE: self._run_coding,
             Phase.CODING: self._run_testing,
+            Phase.TESTING: self._finalize_testing,
         }
 
-        while state.current_phase not in (Phase.DONE, Phase.FAILED):
+        while state.current_phase not in (Phase.DONE, Phase.FAILED, Phase.REPAIR):
             handler = _PHASE_MAP.get(state.current_phase)
             if handler is None:
                 break
@@ -60,6 +61,8 @@ class Orchestrator:
                 st.mark_failed(state, self.workspace_dir, str(e))
                 memory.log_phase(self.project_name, "FAILED", str(e))
                 raise
+            if state.current_phase in (Phase.DONE, Phase.FAILED, Phase.REPAIR):
+                break
             if self.interactive:
                 self._interactive_review(state)
             st.advance(state, self.workspace_dir)
@@ -67,6 +70,7 @@ class Orchestrator:
             memory.log_phase(self.project_name, state.current_phase.value)
 
         if state.current_phase == Phase.DONE:
+            ws.generate_build_report(self.project_name)
             self._print_summary(state)
             memory.log_phase(self.project_name, "DONE")
 
@@ -93,6 +97,17 @@ class Orchestrator:
     def _run_testing(self, state: ProjectState) -> None:
         lg.phase_banner(self.logger, 6, f"TESTING ({self.cfg.testing_agent})")
         phase6_testing.run(state, self.cfg, self.logger)
+
+        summary = ws.summarize_phase6(self.project_name)
+        if summary.get("sections_failed", 0) > 0 or \
+           summary.get("security_critical", 0) > 0 or \
+           summary.get("security_high", 0) > 0:
+            self.logger.warning("  Quality gate NOT met. Project needs repair.")
+            state.current_phase = st.Phase.REPAIR
+            st.save(state, self.workspace_dir)
+
+    def _finalize_testing(self, state: ProjectState) -> None:
+        self.logger.info("  Quality gate passed. Finalizing project.")
 
     def _interactive_review(self, state: ProjectState) -> None:
         artifact_name = _REVIEW_ARTIFACTS.get(state.current_phase)
